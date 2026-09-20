@@ -22,9 +22,10 @@
     }
     h2 { margin-top: 0; color: #333; }
     input[type="text"] {
-      width: 100%; padding: 14px; margin: 12px 0; border: 2px solid #ddd;
-      border-radius: 8px; font-size: 1.2rem; text-align: center; text-transform: uppercase; letter-spacing: 2px;
+      width: 100%; padding: 14px; margin: 8px 0; border: 2px solid #ddd;
+      border-radius: 8px; font-size: 1.1rem; text-align: center; box-sizing: border-box;
     }
+    #roomCodeInput { text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
     input[type="text"]:focus { border-color: #007bff; outline: none; }
     button {
       width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 8px;
@@ -35,7 +36,7 @@
     .btn-secondary { background-color: #28a745; color: #fff; }
     .btn-option {
       background-color: #eef2f5; color: #333; font-size: 1.1rem;
-      border: 2px solid #ccc; margin-bottom: 10px; text-align: left; padding: 12px 16px;
+      border: 2px solid #ccc; margin-bottom: 10px; text-align: left; padding: 14px 16px; width: 100%;
     }
     .btn-option:disabled { opacity: 0.6; cursor: not-allowed; }
     
@@ -69,7 +70,7 @@
   <div id="reader-modal">
     <div id="reader-box">
       <div id="qr-reader" style="width: 100%;"></div>
-      <button onclick="closeQRScanner()" style="background:#dc3545; color:#fff; margin-top:15px;">Cancel</button>
+      <button onclick="closeQRScanner()" style="background:#dc3545; color:#fff; margin-top:15px; padding: 10px;">Cancel</button>
     </div>
   </div>
 
@@ -79,7 +80,7 @@
     let html5QrcodeScanner = null;
     let isTimeUp = false;
 
-    // 1. Auto-extract Room Code from URL query parameters (e.g. player.html?room=A1B2)
+    // 1. Check URL parameters on page load (e.g. player.html?room=A1B2)
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const room = urlParams.get("room") || urlParams.get("code");
@@ -88,7 +89,7 @@
       }
     });
 
-    // 2. Camera QR Scanner Modal Logic
+    // 2. Camera QR Reader Modal Logic
     function openQRScanner() {
       document.getElementById("reader-modal").style.display = "flex";
       html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 220, height: 220 } });
@@ -115,7 +116,7 @@
       document.getElementById("reader-modal").style.display = "none";
     }
 
-    // 3. WebRTC Connection Management
+    // 3. WebRTC PeerJS Connection Setup
     function connectToHost() {
       const name = document.getElementById("playerNameInput").value.trim();
       const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
@@ -149,12 +150,16 @@
       });
     }
 
-    // 4. Handle Host Payloads & Direct Touch Events
+    // 4. Handle Payloads from Host Engine
     function handleIncomingPayload(payload) {
       if (payload.type === "NEW_QUESTION") {
         isTimeUp = false;
         document.getElementById("status-msg").textContent = `Question ${payload.questionIndex + 1} (${payload.category})`;
         renderOptions(payload.options);
+      } else if (payload.type === "TIMER_SYNC") {
+        if (!isTimeUp) {
+          document.getElementById("status-msg").textContent = `Time Remaining: ${payload.timeRemaining}s`;
+        }
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
         document.getElementById("status-msg").textContent = "⏱️ Time's Up!";
@@ -170,7 +175,6 @@
         const btn = document.createElement("button");
         btn.className = "btn-option";
         btn.textContent = `${String.fromCharCode(65 + index)}. ${optText}`;
-        // Direct onclick handler fixes touch-blocking WebView bugs
         btn.onclick = () => submitAnswer(index, btn);
         container.appendChild(btn);
       });
@@ -179,7 +183,6 @@
     function submitAnswer(selectedIndex, selectedBtn) {
       if (isTimeUp) return;
 
-      // Lock choices locally
       disableAllOptions();
       selectedBtn.style.backgroundColor = "#007bff";
       selectedBtn.style.color = "#ffffff";
