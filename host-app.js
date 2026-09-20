@@ -6,9 +6,7 @@
 let peer = null;
 let roomCode = "";
 
-// 1. Permanent Score Registry (Keyed by playerId or Name+Section)
 let playerRegistry = {}; 
-// 2. Active Socket Mappings (peerId -> playerId)
 let socketMap = {};
 
 let activeDataset = [];
@@ -17,6 +15,7 @@ let currentQuestion = null;
 let timerInterval = null;
 let remainingTime = 0;
 let isTimerRunning = false;
+let isQuestionFinished = false;
 
 function initHostRoom() {
   roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -37,13 +36,11 @@ function initHostRoom() {
       const persistentId = conn.metadata?.playerId || `${playerName}_${playerSection}`;
       const clientRoomCode = (conn.metadata?.roomCode || "").toUpperCase();
 
-      // Reject connection if room codes mismatch
       if (clientRoomCode && clientRoomCode !== roomCode) {
         conn.close();
         return;
       }
 
-      // Initialize or retrieve existing score profile
       if (!playerRegistry[persistentId]) {
         playerRegistry[persistentId] = {
           persistentId: persistentId,
@@ -54,7 +51,6 @@ function initHostRoom() {
         };
       }
 
-      // Map current WebRTC connection socket
       playerRegistry[persistentId].conn = conn;
       socketMap[conn.peer] = persistentId;
 
@@ -87,6 +83,7 @@ function handlePlayerAnswer(persistentId, choiceIndex) {
 function gradeCurrentQuestion() {
   if (!currentQuestion) return;
 
+  isQuestionFinished = true;
   const correctChoice = currentQuestion.correctAnswer;
   const cat = currentQuestion.category || "EASY";
 
@@ -144,6 +141,9 @@ function syncStateToPlayer(peerId) {
     if (isTimerRunning) {
       player.conn.send({ type: "TIMER_STARTED", timeLimit: remainingTime });
       player.conn.send({ type: "TIMER_SYNC", timeRemaining: remainingTime });
+    } else if (isQuestionFinished) {
+      player.conn.send({ type: "TIME_UP" });
+      player.conn.send({ type: "REVEAL_ANSWER", correctAnswer: currentQuestion.correctAnswer });
     }
   }
 
@@ -194,6 +194,7 @@ function sendQuestionToPlayers(questionIndex) {
   if (!activeDataset || !activeDataset[questionIndex]) return;
 
   isTimerRunning = false;
+  isQuestionFinished = false;
   clearInterval(timerInterval);
 
   currentQuestionIndex = questionIndex;
@@ -221,6 +222,7 @@ function sendQuestionToPlayers(questionIndex) {
 function startManualTimer() {
   clearInterval(timerInterval);
   isTimerRunning = true;
+  isQuestionFinished = false;
   remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
 
   broadcastPayload({ type: "TIMER_STARTED", timeLimit: remainingTime });
