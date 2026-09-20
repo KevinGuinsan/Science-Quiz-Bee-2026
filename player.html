@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiz Bee Student Portal</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
@@ -62,13 +63,13 @@
   </div>
 
   <script>
-    let playerUuid = localStorage.getItem('qb_pid');
-    if (!playerUuid) {
-      playerUuid = 'pid_' + Math.random().toString(36).substring(2, 9);
-      localStorage.setItem('qb_pid', playerUuid);
-    }
+    let playerUuid = localStorage.getItem('qb_pid') || ('pid_' + Math.random().toString(36).substring(2, 9));
+    localStorage.setItem('qb_pid', playerUuid);
 
+    let peer = null;
+    let conn = null;
     let timerInterval = null;
+
     const urlParams = new URLSearchParams(window.location.search);
     const roomFromUrl = urlParams.get('room');
 
@@ -88,7 +89,6 @@
       roomInput.style.backgroundColor = '#f1f5f9';
     }
 
-    // Restore persistent session
     const savedInfo = localStorage.getItem('qb_player_info');
     if (savedInfo) {
       const playerData = JSON.parse(savedInfo);
@@ -96,51 +96,53 @@
       roomInput.value = playerData.room;
       nameInput.value = playerData.name;
       sectionInput.value = playerData.section;
-      
-      joinScreen.style.display = 'none';
-      gameScreen.style.display = 'block';
-      document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
-
-      initPlayerSync(playerData);
+      connectToGame(playerData);
     }
 
     joinForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      
       const playerData = {
         uuid: playerUuid,
         room: roomInput.value.trim().toUpperCase(),
         name: nameInput.value.trim(),
         section: sectionInput.value.trim()
       };
-
       localStorage.setItem('qb_player_info', JSON.stringify(playerData));
+      connectToGame(playerData);
+    });
 
+    function connectToGame(playerData) {
       joinScreen.style.display = 'none';
       gameScreen.style.display = 'block';
       document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
 
-      initPlayerSync(playerData);
-    });
+      // BroadcastChannel for same-laptop tabs
+      const localChannel = new BroadcastChannel(`qb_channel_${playerData.room}`);
+      localChannel.postMessage({ type: 'PLAYER_JOIN', player: playerData });
+      localChannel.onmessage = (event) => handleIncomingMessage(event.data);
 
-    function initPlayerSync(player) {
-      const channel = new BroadcastChannel(`qb_channel_${player.room}`);
+      // WebRTC Peer Connection for mobile phones
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect(`qb_host_${playerData.room}`);
+        
+        conn.on('open', () => {
+          conn.send({ type: 'PLAYER_JOIN', player: playerData });
+        });
 
-      // Notify host of arrival and request immediate state sync
-      channel.postMessage({ type: 'PLAYER_JOIN', player: player });
+        conn.on('data', (data) => handleIncomingMessage(data));
+      });
+    }
 
-      channel.onmessage = (event) => {
-        const msg = event.data;
-
-        if (msg.type === 'QUESTION_DISPATCH') {
-          clearInterval(timerInterval);
-          renderQuestion(msg.question);
-          timerDisplay.textContent = `${(msg.question.timer || 15).toFixed(2)}s`;
-        } else if (msg.type === 'START_TIMER') {
-          renderQuestion(msg.question);
-          startPlayerCountdown(msg.endTime);
-        }
-      };
+    function handleIncomingMessage(msg) {
+      if (msg.type === 'QUESTION_DISPATCH') {
+        clearInterval(timerInterval);
+        renderQuestion(msg.question);
+        timerDisplay.textContent = `${(msg.question.timer || 15).toFixed(2)}s`;
+      } else if (msg.type === 'START_TIMER') {
+        renderQuestion(msg.question);
+        startPlayerCountdown(msg.endTime);
+      }
     }
 
     function renderQuestion(q) {
@@ -155,7 +157,7 @@
           const btn = document.createElement('button');
           btn.className = 'option-btn';
           btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
-          btn.disabled = true; // Stay locked until host clicks Start Timer
+          btn.disabled = true;
           inputContainer.appendChild(btn);
         });
       } else if (q.type === 'text' || !q.options) {
@@ -181,7 +183,6 @@
       const textInput = document.getElementById('typed-answer');
       const submitBtn = inputContainer.querySelector('.btn');
 
-      // Unlock input options when timer starts
       if (optionBtns.length > 0) {
         optionBtns.forEach((btn, idx) => {
           btn.disabled = false;
@@ -204,7 +205,6 @@
         };
       }
 
-      // Synchronized 30ms millisecond countdown
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         const remaining = Math.max(0, endTime - Date.now());
@@ -225,13 +225,12 @@
     }
 
     function submitResponse(answer) {
+      const payload = { type: 'SUBMIT_ANSWER', uuid: playerUuid, answer: answer };
+      if (conn && conn.open) conn.send(payload);
+
       const playerInfo = JSON.parse(localStorage.getItem('qb_player_info'));
       const channel = new BroadcastChannel(`qb_channel_${playerInfo.room}`);
-      channel.postMessage({
-        type: 'SUBMIT_ANSWER',
-        uuid: playerUuid,
-        answer: answer
-      });
+      channel.postMessage(payload);
     }
   </script>
 </body>
