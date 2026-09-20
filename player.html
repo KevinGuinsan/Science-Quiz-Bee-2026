@@ -105,6 +105,13 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
+    // Generate or retrieve unique persistent playerId
+    let playerId = localStorage.getItem("qb_pid");
+    if (!playerId) {
+      playerId = 'pid_' + Math.random().toString(36).substring(2, 11);
+      localStorage.setItem("qb_pid", playerId);
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomFromUrl = urlParams.get("room") || urlParams.get("code");
@@ -123,14 +130,14 @@
         if (roomFromUrl) roomInput.disabled = true;
       }
 
-      // 1. Instant UI Restoration if user was already in an active session
+      // 1. INSTANT VIEW RESTORATION ON REFRESH (Skips Join Screen completely)
       if (isJoined && savedName && savedSection && savedRoom) {
         document.getElementById("join-screen").style.display = "none";
         document.getElementById("game-screen").style.display = "block";
         document.getElementById("player-tag").textContent = `${savedName} (${savedSection})`;
 
         restoreCachedGameState();
-        connectToHost(true); // Connect quietly in background
+        connectToHost(true); // Quiet background WebRTC reconnect
       }
     });
 
@@ -212,14 +219,18 @@
 
       peer.on('open', (id) => {
         const hostPeerId = `quizbee-room-${code}`;
-        conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
+        
+        // Pass persistent playerId to preserve accumulated scores on host
+        conn = peer.connect(hostPeerId, { 
+          metadata: { name: name, section: section, playerId: playerId } 
+        });
 
         conn.on('open', () => {
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
 
-          // Request active state snapshot from host upon reconnect
+          // Request state sync from host upon reconnect
           conn.send({ type: "REQUEST_STATE_SYNC" });
         });
 
@@ -251,7 +262,7 @@
         isTimeUp = false;
         selectedOptionIndex = null;
         
-        // Cache question state for instant refresh restoration
+        // Save current question state for refresh survival
         localStorage.setItem("qb_question", payload.question);
         localStorage.setItem("qb_category", payload.category);
         localStorage.setItem("qb_options", JSON.stringify(payload.options));
