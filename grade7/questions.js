@@ -22,12 +22,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "Which part of the compound microscope controls the amount of light that reaches the specimen?",
-    options: [
-      "Eyepiece",
-      "Stage clips",
-      "Iris diaphragm",
-      "Coarse adjustment knob"
-    ],
+    options: ["Eyepiece", "Stage clips", "Iris diaphragm", "Coarse adjustment knob"],
     answerIndex: 2
   },
   {
@@ -35,12 +30,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "Which state of matter has a definite volume but takes the shape of its container?",
-    options: [
-      "Solid",
-      "Liquid",
-      "Gas",
-      "Plasma"
-    ],
+    options: ["Solid", "Liquid", "Gas", "Plasma"],
     answerIndex: 1
   },
   {
@@ -48,12 +38,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "In a saltwater solution, which component acts as the solute?",
-    options: [
-      "Water",
-      "Salt",
-      "Both water and salt",
-      "Neither"
-    ],
+    options: ["Water", "Salt", "Both water and salt", "Neither"],
     answerIndex: 1
   },
   {
@@ -61,12 +46,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "What is the basic structural and functional unit of all living organisms?",
-    options: [
-      "Tissue",
-      "Organ",
-      "Cell",
-      "Organelle"
-    ],
+    options: ["Tissue", "Organ", "Cell", "Organelle"],
     answerIndex: 2
   },
   {
@@ -74,12 +54,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "Which organelle is known as the powerhouse of the cell because it generates ATP?",
-    options: [
-      "Nucleus",
-      "Ribosome",
-      "Mitochondrion",
-      "Golgi body"
-    ],
+    options: ["Nucleus", "Ribosome", "Mitochondrion", "Golgi body"],
     answerIndex: 2
   },
   {
@@ -87,12 +62,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "What type of reproduction involves only one parent and produces offspring that are genetically identical to the parent?",
-    options: [
-      "Sexual reproduction",
-      "Asexual reproduction",
-      "Fertilization",
-      "Pollination"
-    ],
+    options: ["Sexual reproduction", "Asexual reproduction", "Fertilization", "Pollination"],
     answerIndex: 1
   },
   {
@@ -100,12 +70,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "Which unit of measurement is the SI base unit for temperature?",
-    options: [
-      "Celsius",
-      "Fahrenheit",
-      "Kelvin",
-      "Joule"
-    ],
+    options: ["Celsius", "Fahrenheit", "Kelvin", "Joule"],
     answerIndex: 2
   },
   {
@@ -113,12 +78,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "Which method of heat transfer occurs through direct physical contact between solids?",
-    options: [
-      "Conduction",
-      "Convection",
-      "Radiation",
-      "Insulation"
-    ],
+    options: ["Conduction", "Convection", "Radiation", "Insulation"],
     answerIndex: 0
   },
   {
@@ -126,12 +86,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "What type of wave requires a medium to travel through?",
-    options: [
-      "Electromagnetic wave",
-      "Mechanical wave",
-      "Radio wave",
-      "Light wave"
-    ],
+    options: ["Electromagnetic wave", "Mechanical wave", "Radio wave", "Light wave"],
     answerIndex: 1
   },
   {
@@ -139,12 +94,7 @@ export const questions = [
     category: "EASY",
     type: "MULTIPLE_CHOICE",
     question: "What subatomic particles inside the nucleus were named and confirmed by Ernest Rutherford in 1917?",
-    options: [
-      "Neutrons",
-      "Protons",
-      "Electrons",
-      "Orbit"
-    ],
+    options: ["Neutrons", "Protons", "Electrons", "Orbit"],
     answerIndex: 1
   },
 
@@ -154,12 +104,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What type of solution contains the maximum amount of dissolved solute at a given temperature?",
-    options: [
-      "Unsaturated Solution",
-      "Saturated Solution",
-      "Supersaturated Solution",
-      "Dilute Solution"
-    ],
+    options: ["Unsaturated Solution", "Saturated Solution", "Supersaturated Solution", "Dilute Solution"],
     answerIndex: 1
   },
   {
@@ -167,12 +112,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "If an objective lens has a magnifying power of 40x and the eyepiece lens has a magnification of 10x, what is the total magnification of the microscope?",
-    options: [
-      "50x",
-      "300x",
-      "400x",
-      "4000x"
-    ],
+    options: ["50x", "300x", "400x", "4000x"],
     answerIndex: 2
   },
   {
@@ -180,12 +120,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "In the biological hierarchy of organization, what level is formed by a group of similar tissues working together to perform a specific function?",
-    options: [
-      "Organelle",
-      "Organ System",
-      "Organ",
-      "Organism"
-    ],
+    options: ["Organelle", "Organ System", "Organ", "Organism"],
     answerIndex: 2
   },
   {
@@ -193,12 +128,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "Name the cell structure present in plant cells that provides structural support and rigidity, but is absent in animal cells.",
-    options: [
-      "Cell membrane",
-      "Cell wall",
-      "Cytoplasm",
-      "Vacuole"
-    ],
+    options: ["Cell membrane", "Cell wall", "Cytoplasm", "Vacuole"],
     answerIndex: 1
   },
   {
@@ -206,12 +136,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What scientific instrument is used to measure force, typically calibrated in Newtons?",
-    options: [
-      "Spring balance",
-      "Triple beam balance",
-      "Graduated cylinder",
-      "Barometer"
-    ],
+    options: ["Spring balance", "Triple beam balance", "Graduated cylinder", "Barometer"],
     answerIndex: 0
   },
   {
@@ -219,12 +144,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What form of energy is stored in the chemical bonds of substances like food, fuel, and batteries?",
-    options: [
-      "Thermal energy",
-      "Radiant energy",
-      "Chemical potential energy",
-      "Mechanical energy"
-    ],
+    options: ["Thermal energy", "Radiant energy", "Chemical potential energy", "Mechanical energy"],
     answerIndex: 2
   },
   {
@@ -232,12 +152,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "In a food chain, what ecological role is played by organisms like fungi and bacteria that break down dead organic matter?",
-    options: [
-      "Producers",
-      "Primary Consumers",
-      "Decomposers",
-      "Scavengers"
-    ],
+    options: ["Producers", "Primary Consumers", "Decomposers", "Scavengers"],
     answerIndex: 2
   },
   {
@@ -245,12 +160,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What phase change occurs when a substance transitions directly from a solid to a gas without turning into a liquid first?",
-    options: [
-      "Evaporation",
-      "Sublimation",
-      "Deposition",
-      "Condensation"
-    ],
+    options: ["Evaporation", "Sublimation", "Deposition", "Condensation"],
     answerIndex: 1
   },
   {
@@ -258,12 +168,7 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What property of light causes an object placed underwater to appear bent or displaced?",
-    options: [
-      "Reflection",
-      "Refraction",
-      "Diffraction",
-      "Absorption"
-    ],
+    options: ["Reflection", "Refraction", "Diffraction", "Absorption"],
     answerIndex: 1
   },
   {
@@ -271,16 +176,11 @@ export const questions = [
     category: "AVERAGE",
     type: "MULTIPLE_CHOICE",
     question: "What type of wave motion occurs when the particles of the medium vibrate perpendicular to the direction of wave travel?",
-    options: [
-      "Longitudinal wave",
-      "Transverse wave",
-      "Surface wave",
-      "Electromagnetic wave"
-    ],
+    options: ["Longitudinal wave", "Transverse wave", "Surface wave", "Electromagnetic wave"],
     answerIndex: 1
   },
 
-  // --- DIFFICULT ROUND (Original Identification / Short Answer Format) ---
+  // --- DIFFICULT ROUND (Original Short-Answer / Identification Format) ---
   {
     id: "diff_1",
     category: "DIFFICULT",
@@ -317,7 +217,7 @@ export const questions = [
     acceptableAnswers: ["Strike-slip fault", "Strike slip fault", "Strike-slip"]
   },
 
-  // --- CLINCHER ROUND (Original Identification / Short Answer Format) ---
+  // --- CLINCHER ROUND (Original Short-Answer / Identification Format) ---
   {
     id: "clincher_1",
     category: "CLINCHER",
@@ -350,8 +250,8 @@ export const questions = [
 /**
  * Strips correct answers before transmitting question payloads to student devices over WebRTC.
  * 
- * @param {number} index - Index of question in the questions array
- * @returns {Object|null} Payload ready for WebRTC transmission
+ * @param {number} index - Index of question in questions array
+ * @returns {Object|null}
  */
 export function getSanitizedQuestionForClient(index) {
   const q = questions[index];
@@ -375,10 +275,10 @@ export function getSanitizedQuestionForClient(index) {
 }
 
 /**
- * Validates player answer on the host against your original array structure.
+ * Validates player submission on host.
  * 
- * @param {number} questionIndex - Index of question in array
- * @param {number|string} playerSubmission - Selected option index or typed input
+ * @param {number} questionIndex 
+ * @param {number|string} playerSubmission 
  * @returns {boolean}
  */
 export function verifyAnswer(questionIndex, playerSubmission) {
