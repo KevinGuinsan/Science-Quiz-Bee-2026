@@ -21,7 +21,12 @@
     .options-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .option-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 1rem; text-align: left; cursor: not-allowed; opacity: 0.6; }
     .option-btn.active { cursor: pointer; opacity: 1; }
-    .option-btn.active:hover { border-color: #0066ff; background: #f0f7fc; }
+    .option-btn.selected { border: 2px solid #0066ff !important; background-color: #e0f2fe; }
+    .option-btn.correct { border: 2px solid #16a34a !important; background-color: #dcfce7 !important; color: #15803d; font-weight: bold; }
+    .option-btn.wrong { border: 2px solid #dc2626 !important; background-color: #fee2e2 !important; color: #b91c1c; font-weight: bold; }
+    .result-banner { text-align: center; font-weight: bold; margin-top: 10px; font-size: 1.1rem; }
+    .result-banner.correct { color: #16a34a; }
+    .result-banner.wrong { color: #dc2626; }
   </style>
 </head>
 <body>
@@ -49,6 +54,7 @@
     <div id="game-screen" style="display: none;">
       <header style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
         <span id="player-tag" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">Player</span>
+        <span id="score-tag" style="font-size: 0.85rem; font-weight: bold; color: #0066ff; margin-left: 10px;">Score: 0 pts</span>
         <span id="round-tag" class="badge">EASY</span>
       </header>
 
@@ -57,6 +63,7 @@
       </div>
 
       <div id="timer-display" class="timer-box">--.--s</div>
+      <div id="result-banner" class="result-banner"></div>
 
       <div id="input-container" class="options-grid"></div>
     </div>
@@ -69,6 +76,7 @@
     let peer = null;
     let conn = null;
     let timerInterval = null;
+    let mySelectedAnswer = null;
 
     const urlParams = new URLSearchParams(window.location.search);
     const roomFromUrl = urlParams.get('room');
@@ -82,6 +90,8 @@
     const questionBox = document.getElementById('question-box');
     const timerDisplay = document.getElementById('timer-display');
     const inputContainer = document.getElementById('input-container');
+    const resultBanner = document.getElementById('result-banner');
+    const scoreTag = document.getElementById('score-tag');
 
     if (roomFromUrl) {
       roomInput.value = roomFromUrl.toUpperCase();
@@ -116,38 +126,41 @@
       gameScreen.style.display = 'block';
       document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
 
-      // BroadcastChannel for same-laptop tabs
       const localChannel = new BroadcastChannel(`qb_channel_${playerData.room}`);
       localChannel.postMessage({ type: 'PLAYER_JOIN', player: playerData });
       localChannel.onmessage = (event) => handleIncomingMessage(event.data);
 
-      // WebRTC Peer Connection for mobile phones
       peer = new Peer();
       peer.on('open', () => {
         conn = peer.connect(`qb_host_${playerData.room}`);
-        
         conn.on('open', () => {
           conn.send({ type: 'PLAYER_JOIN', player: playerData });
         });
-
         conn.on('data', (data) => handleIncomingMessage(data));
       });
     }
 
     function handleIncomingMessage(msg) {
+      if (msg.leaderboard && msg.leaderboard[playerUuid]) {
+        scoreTag.textContent = `Score: ${msg.leaderboard[playerUuid].score} pts`;
+      }
+
       if (msg.type === 'QUESTION_DISPATCH') {
         clearInterval(timerInterval);
+        mySelectedAnswer = null;
+        resultBanner.textContent = '';
         renderQuestion(msg.question);
         timerDisplay.textContent = `${(msg.question.timer || 15).toFixed(2)}s`;
       } else if (msg.type === 'START_TIMER') {
         renderQuestion(msg.question);
         startPlayerCountdown(msg.endTime);
+      } else if (msg.type === 'TIME_UP') {
+        showCorrectAndWrongMarkings(msg.correctAnswer);
       }
     }
 
     function renderQuestion(q) {
       if (!q) return;
-      
       document.getElementById('round-tag').textContent = q.round ? q.round.replace(" Round", "") : "QUESTION";
       questionBox.textContent = q.question;
       inputContainer.innerHTML = '';
@@ -188,8 +201,9 @@
           btn.disabled = false;
           btn.classList.add('active');
           btn.onclick = () => {
-            optionBtns.forEach(b => b.style.border = '1px solid #cbd5e1');
-            btn.style.border = '2px solid #0066ff';
+            optionBtns.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            mySelectedAnswer = idx;
             submitResponse(idx);
           };
         });
@@ -199,7 +213,8 @@
         textInput.focus();
         submitBtn.disabled = false;
         submitBtn.onclick = () => {
-          submitResponse(textInput.value.trim());
+          mySelectedAnswer = textInput.value.trim();
+          submitResponse(mySelectedAnswer);
           submitBtn.disabled = true;
           textInput.disabled = true;
         };
@@ -213,15 +228,50 @@
         if (remaining <= 0) {
           clearInterval(timerInterval);
           timerDisplay.textContent = "0.00s (TIME'S UP)";
-          
-          optionBtns.forEach(b => {
-            b.disabled = true;
-            b.classList.remove('active');
-          });
+          optionBtns.forEach(b => { b.disabled = true; b.classList.remove('active'); });
           if (textInput) textInput.disabled = true;
           if (submitBtn) submitBtn.disabled = true;
         }
       }, 30);
+    }
+
+    function showCorrectAndWrongMarkings(correctAnswer) {
+      const optionBtns = inputContainer.querySelectorAll('.option-btn');
+      const textInput = document.getElementById('typed-answer');
+
+      if (optionBtns.length > 0) {
+        optionBtns.forEach((btn, idx) => {
+          btn.classList.remove('selected', 'active');
+          if (idx === Number(correctAnswer)) {
+            btn.classList.add('correct');
+          } else if (idx === Number(mySelectedAnswer)) {
+            btn.classList.add('wrong');
+          }
+        });
+
+        if (mySelectedAnswer !== null && Number(mySelectedAnswer) === Number(correctAnswer)) {
+          resultBanner.className = 'result-banner correct';
+          resultBanner.textContent = '✓ Correct Answer!';
+        } else {
+          resultBanner.className = 'result-banner wrong';
+          resultBanner.textContent = '✗ Incorrect Answer';
+        }
+      } else if (textInput) {
+        const cleanTyped = String(mySelectedAnswer || '').trim().toLowerCase();
+        const cleanCorrect = String(correctAnswer || '').trim().toLowerCase();
+
+        if (cleanTyped === cleanCorrect) {
+          textInput.style.border = '2px solid #16a34a';
+          textInput.style.backgroundColor = '#dcfce7';
+          resultBanner.className = 'result-banner correct';
+          resultBanner.textContent = '✓ Correct Answer!';
+        } else {
+          textInput.style.border = '2px solid #dc2626';
+          textInput.style.backgroundColor = '#fee2e2';
+          resultBanner.className = 'result-banner wrong';
+          resultBanner.textContent = `✗ Incorrect. Correct: ${correctAnswer}`;
+        }
+      }
     }
 
     function submitResponse(answer) {
