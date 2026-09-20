@@ -1,9 +1,10 @@
 /**
  * Science 7 Quiz Bee Question Bank Module
- * Timers:
+ * Round Timers:
  * - EASY: 10 Seconds
- * - AVERAGE / MODERATE: 15 Seconds
- * - DIFFICULT / CLINCHER: 20 Seconds
+ * - AVERAGE: 15 Seconds
+ * - DIFFICULT: 20 Seconds
+ * - CLINCHER: 20 Seconds
  */
 
 export const DIFFICULTY_TIMERS = {
@@ -345,3 +346,54 @@ export const questions = [
     ]
   }
 ];
+
+/**
+ * Strips correct answers before transmitting question payloads to student devices over WebRTC.
+ * 
+ * @param {number} index - Index of question in the questions array
+ * @returns {Object|null} Payload ready for WebRTC transmission
+ */
+export function getSanitizedQuestionForClient(index) {
+  const q = questions[index];
+  if (!q) return null;
+
+  const payload = {
+    id: q.id,
+    index: index,
+    total: questions.length,
+    category: q.category,
+    type: q.type, // "MULTIPLE_CHOICE" or "IDENTIFICATION"
+    question: q.question,
+    timeLimit: DIFFICULTY_TIMERS[q.category] || 15
+  };
+
+  if (q.type === "MULTIPLE_CHOICE") {
+    payload.options = q.options;
+  }
+
+  return payload;
+}
+
+/**
+ * Validates player answer on the host against your original array structure.
+ * 
+ * @param {number} questionIndex - Index of question in array
+ * @param {number|string} playerSubmission - Selected option index or typed input
+ * @returns {boolean}
+ */
+export function verifyAnswer(questionIndex, playerSubmission) {
+  const q = questions[questionIndex];
+  if (!q) return false;
+
+  if (q.type === "MULTIPLE_CHOICE") {
+    return q.answerIndex === Number(playerSubmission);
+  }
+
+  if (q.type === "IDENTIFICATION") {
+    if (typeof playerSubmission !== "string") return false;
+    const cleanPlayer = playerSubmission.trim().toLowerCase();
+    return q.acceptableAnswers.some(ans => ans.trim().toLowerCase() === cleanPlayer);
+  }
+
+  return false;
+}
