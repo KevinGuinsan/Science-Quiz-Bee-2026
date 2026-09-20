@@ -26,11 +26,12 @@ const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Which regulatory agency sets environmental disposal standards for chemical waste in the Philippines?", options: ["DTI", "FDA", "DENR", "DOST"], answer: 2 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Laser light differs from ordinary light bulb radiation because laser light is what?", options: ["Polychromatic", "Coherent and monochromatic", "Diffuse", "Incoherent"], answer: 1 },
     
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What optical phenomenon allows light signals to travel inside fiber optic cables without escaping?", answer: "total internal reflection" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What detergent chemical additive causes algal blooms and oxygen depletion in rivers?", answer: "phosphate" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What rotational force causes an object to turn or rotate around a pivot or fulcrum?", answer: "torque" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What upward force is exerted by a fluid on an object placed in it according to Archimedes' principle?", answer: "buoyant force" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What hollow hull design allows massive metal ships to float by increasing displaced water volume?", answer: "density" },
+    // --- DIFFICULT ROUND (TYPED / IDENTIFICATION FORMAT) ---
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What additive in personal care soaps acts as a chelating agent to soften hard water?", answer: "edta" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What wave interaction causes noise-canceling headphones to reduce background sound?", answer: "destructive interference" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What physical property of a body resists changes in its rotational state of motion?", answer: "rotational inertia" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What heating process eliminates disease-causing pathogens in milk and fruit juices?", answer: "pasteurization" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What simple machine consists of a wheel with a groove holding a rope or cable?", answer: "pulley" },
 
     { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "Which simple machine wrapped around a cylinder converts rotational motion to linear force?", options: ["Wedge", "Screw", "Lever", "Pulley"], answer: 1 },
     { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What heating process eliminates pathogens in dairy products without boiling the liquid?", answer: "pasteurization" },
@@ -61,11 +62,12 @@ const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "An object submerged in water experiences an upward buoyant force of 50 N. What mass of water was displaced in kg? (g = 9.8 m/s²)", options: ["2.5 kg", "5.1 kg", "10.0 kg", "50.0 kg"], answer: 1 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Holograms differ from standard 3D photographs because holographic recording captures what wave characteristic?", options: ["Amplitude only", "Phase information and interference patterns", "Speed variations", "Wavelength reduction"], answer: 1 },
     
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What simple machine component acts as a fixed pivot point about which a lever rotates?", answer: "fulcrum" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What class of hazardous metals like lead and cadmium leach into groundwater from improper battery disposal?", answer: "heavy metals" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What safety device automatically breaks an electric circuit when current amperage exceeds safe limits?", answer: "circuit breaker" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "Which medical innovation uses focused, coherent light waves for precise tissue incisions?", answer: "laser" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What fluid property describes a liquid's resistance to flow and internal friction?", answer: "viscosity" },
+    // --- DIFFICULT ROUND (TYPED / IDENTIFICATION FORMAT) ---
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What additive in personal care soaps acts as a chelating agent to soften hard water?", answer: "edta" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What wave interaction causes noise-canceling headphones to reduce background sound?", answer: "destructive interference" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What physical property of a body resists changes in its rotational state of motion?", answer: "rotational inertia" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What heating process eliminates disease-causing pathogens in milk and fruit juices?", answer: "pasteurization" },
+    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What simple machine consists of a wheel with a groove holding a rope or cable?", answer: "pulley" },
 
     { round: "Clincher Round", points: 1, timer: 10, type: "mc", question: "Which unit measures electric current flow through home wiring?", options: ["Volts", "Amperes", "Ohms", "Watts"], answer: 1 },
     { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What fundamental property of matter resists changes in its state of linear motion?", answer: "inertia" },
@@ -96,6 +98,7 @@ const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Converting linear motion into angular rotation depends on applying force at what distance from an axis?", options: ["At zero distance", "At a perpendicular distance (radius) to create torque", "Parallel to the bar", "At the exact center of mass"], answer: 1 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Why do modern energy-efficient air conditioners with inverter technology consume less electricity?", options: ["They run at maximum speed constantly", "They adjust compressor motor speed dynamically instead of cycling fully ON/OFF", "They bypass home circuit breakers", "They utilize hydraulic pumps"], answer: 1 },
     
+    // --- DIFFICULT ROUND (TYPED / IDENTIFICATION FORMAT) ---
     { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What additive in personal care soaps acts as a chelating agent to soften hard water?", answer: "edta" },
     { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What wave interaction causes noise-canceling headphones to reduce background sound?", answer: "destructive interference" },
     { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What physical property of a body resists changes in its rotational state of motion?", answer: "rotational inertia" },
