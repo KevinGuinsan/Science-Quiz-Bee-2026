@@ -144,6 +144,9 @@ function syncStateToPlayer(peerId) {
     } else if (isQuestionFinished) {
       player.conn.send({ type: "TIME_UP" });
       player.conn.send({ type: "REVEAL_ANSWER", correctAnswer: currentQuestion.correctAnswer });
+    } else {
+      // Force client into WAITING_TIMER mode if question hasn't been started on host yet
+      player.conn.send({ type: "RESET_TO_WAITING" });
     }
   }
 
@@ -219,7 +222,6 @@ function sendQuestionToPlayers(questionIndex) {
   }
 }
 
-// Set category timer: EASY = 10s, MODERATE = 15s, DIFFICULT = 20s
 function getCategoryTimeLimit(category) {
   const cat = (category || "EASY").toUpperCase();
   if (cat === "EASY") return 10;
@@ -237,7 +239,6 @@ function startManualTimer() {
   const durationMs = durationSec * 1000;
   targetEndTime = Date.now() + durationMs;
 
-  // Broadcast timer start with explicit duration and synchronized end target
   broadcastPayload({ type: "TIMER_STARTED", timeMs: durationMs, endTime: targetEndTime });
 
   timerInterval = setInterval(() => {
@@ -256,7 +257,7 @@ function startManualTimer() {
       broadcastPayload({ type: "TIME_UP" });
       gradeCurrentQuestion();
     }
-  }, 30); // Smooth high-frequency tick for millisecond accuracy
+  }, 30);
 }
 
 function updatePlayerListUI() {
