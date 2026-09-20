@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grade 11 Science Quiz Bee Controller</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
@@ -96,12 +97,8 @@
 
   <script src="questions.js"></script>
   <script>
-    // Host Room Code setup
-    let roomCode = localStorage.getItem('qb_host_room');
-    if (!roomCode) {
-      roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-      localStorage.setItem('qb_host_room', roomCode);
-    }
+    let roomCode = localStorage.getItem('qb_host_room') || Math.random().toString(36).substring(2, 6).toUpperCase();
+    localStorage.setItem('qb_host_room', roomCode);
     document.getElementById('room-code-display').textContent = roomCode;
 
     let currentSetKey = localStorage.getItem('qb_host_set') || 1;
@@ -111,35 +108,42 @@
     
     let timerInterval = null;
     let activeEndTime = null;
+    let phoneConnections = [];
 
     document.getElementById('set-select').value = currentSetKey;
 
     const joinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
-    new QRCode(document.getElementById('qrcode'), {
-      text: joinUrl,
-      width: 120, height: 120
-    });
+    new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 120, height: 120 });
 
     const channel = new BroadcastChannel(`qb_channel_${roomCode}`);
+    channel.onmessage = (e) => handleIncomingMessage(e.data);
 
-    channel.onmessage = (event) => {
-      const msg = event.data;
+    // Cross-Device Broker for Mobile Phones
+    const peer = new Peer(`qb_host_${roomCode}`);
+    peer.on('connection', (conn) => {
+      phoneConnections.push(conn);
+      conn.on('data', (data) => handleIncomingMessage(data));
+      conn.on('open', () => dispatchCurrentQuestion());
+    });
 
+    function broadcastPayload(payload) {
+      channel.postMessage(payload);
+      phoneConnections.forEach(conn => {
+        if (conn.open) conn.send(payload);
+      });
+    }
+
+    function handleIncomingMessage(msg) {
       if (msg.type === 'PLAYER_JOIN') {
         const pid = msg.player.uuid;
-        const existingScore = connectedPlayers[pid] ? connectedPlayers[pid].score : 0;
-
         connectedPlayers[pid] = {
           uuid: pid,
           name: msg.player.name,
           section: msg.player.section,
-          score: existingScore
+          score: connectedPlayers[pid] ? connectedPlayers[pid].score : 0
         };
-        
         localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
         updateLeaderboardUI();
-        
-        // Push active state directly to newly joined player
         dispatchCurrentQuestion();
       } else if (msg.type === 'SUBMIT_ANSWER') {
         const q = currentQuestions[selectedIndex];
@@ -159,7 +163,7 @@
           updateLeaderboardUI();
         }
       }
-    };
+    }
 
     const setSelect = document.getElementById('set-select');
     const qTextEl = document.getElementById('question-text');
@@ -186,13 +190,9 @@
     }
 
     function updateCounters() {
-      const easy = currentQuestions.filter(q => q.round === "Easy Round").length;
-      const mod = currentQuestions.filter(q => q.round === "Moderate Round").length;
-      const diff = currentQuestions.filter(q => q.round === "Difficult Round").length;
-
-      document.getElementById('easy-count').textContent = easy;
-      document.getElementById('mod-count').textContent = mod;
-      document.getElementById('diff-count').textContent = diff;
+      document.getElementById('easy-count').textContent = currentQuestions.filter(q => q.round === "Easy Round").length;
+      document.getElementById('mod-count').textContent = currentQuestions.filter(q => q.round === "Moderate Round").length;
+      document.getElementById('diff-count').textContent = currentQuestions.filter(q => q.round === "Difficult Round").length;
     }
 
     function renderNavButtons() {
@@ -220,7 +220,7 @@
       const q = currentQuestions[selectedIndex];
       if (!q) return;
 
-      channel.postMessage({
+      broadcastPayload({
         type: 'QUESTION_DISPATCH',
         question: q
       });
@@ -228,7 +228,6 @@
 
     function renderQuestion(index) {
       clearInterval(timerInterval);
-      activeEndTime = null;
       const q = currentQuestions[index];
       if (!q) return;
 
@@ -271,7 +270,7 @@
       const textInput = optionsContainer.querySelector('input');
       if (textInput) textInput.disabled = false;
 
-      channel.postMessage({
+      broadcastPayload({
         type: 'START_TIMER',
         question: q,
         endTime: activeEndTime,
