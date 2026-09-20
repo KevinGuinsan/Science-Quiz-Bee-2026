@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grade 7 Quiz Bee Host</title>
+
+  <!-- External CDN Libraries -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Grade Questions & Shared Core Engine -->
+  <script src="questions.js"></script>
+  <script src="../host-app.js"></script>
+
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f8f9fa; }
+    .layout { display: flex; gap: 20px; }
+    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; }
+    button { padding: 10px 16px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; }
+    .btn-timer { background: #ffc107; color: #212529; }
+    .btn-next { background: #007bff; color: white; }
+    .btn-csv { background: #28a745; color: white; }
+  </style>
+</head>
+<body onload="initHostRoom()">
+
+  <h1>Grade 7 Science Quiz Bee Controller</h1>
+
+  <div class="layout">
+    <!-- LOBBY & QR CARD -->
+    <div class="panel" style="max-width: 300px; text-align: center;">
+      <h3>ROOM CODE</h3>
+      <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
+      
+      <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
+      
+      <h4>Connected Players</h4>
+      <ul id="player-list" style="text-align: left;"></ul>
+    </div>
+
+    <!-- HOST CONTROLLER CARD -->
+    <div class="panel">
+      <div id="question-area">
+        <h2 id="q-category">Category: --</h2>
+        <p id="q-text" style="font-size: 1.2rem;">Click "Send Next Question" to begin.</p>
+        <ul id="q-options"></ul>
+      </div>
+
+      <hr/>
+
+      <div>
+        <button class="btn-next" onclick="sendQuestionToPlayers(0)">🚀 Send First Question</button>
+        <button class="btn-timer" onclick="startManualTimer()">⏱️ Start Timer</button>
+        <h2 style="display: inline-block; margin-left: 20px;">Timer: <span id="timer-display">--</span></h2>
+      </div>
+
+      <hr style="margin-top:20px;"/>
+
+      <h3>Live Category Scoreboard</h3>
+      <div id="scoreboard-display"></div>
+      
+      <button class="btn-csv" style="margin-top: 15px;" onclick="exportScoresCSV()">📊 Export Scores (CSV)</button>
+    </div>
+  </div>
+
+  <script>
+    function updateHostQuestionUI() {
+      if (!currentQuestion) return;
+      document.getElementById("q-category").textContent = `Category: ${currentQuestion.category}`;
+      document.getElementById("q-text").textContent = currentQuestion.question;
+      
+      const optList = document.getElementById("q-options");
+      optList.innerHTML = currentQuestion.options
+        .map((opt, i) => `<li>${String.fromCharCode(65 + i)}. ${opt}</li>`).join("");
+    }
+  </script>
+</body>
+</html>
