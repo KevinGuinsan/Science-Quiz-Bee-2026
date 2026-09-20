@@ -39,7 +39,7 @@
     .btn-option.selected { background-color: #007bff; color: #fff; border-color: #0056b3; }
     .btn-option.correct { background-color: #28a745 !important; color: #fff !important; border-color: #1e7e34 !important; font-weight: bold; }
     .btn-option.incorrect { background-color: #dc3545 !important; color: #fff !important; border-color: #bd2130 !important; font-weight: bold; }
-    .btn-option:disabled { cursor: not-allowed; opacity: 0.9; }
+    .btn-option:disabled { cursor: not-allowed; opacity: 0.85; }
     
     #status-msg.status-correct { color: #28a745; font-size: 1.3rem; font-weight: bold; }
     #status-msg.status-incorrect { color: #dc3545; font-size: 1.3rem; font-weight: bold; }
@@ -101,24 +101,31 @@
     let peer = null;
     let conn = null;
     let html5QrcodeScanner = null;
+    let isTimerActive = false;
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
+    // Auto-reconnect & auto-fill credentials on page refresh or QR link opening
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomFromUrl = urlParams.get("room") || urlParams.get("code");
       
       const savedName = localStorage.getItem("qb_name");
       const savedSection = localStorage.getItem("qb_section");
+      const savedRoom = localStorage.getItem("qb_room") || roomFromUrl;
 
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
 
-      // Populate & lock Room Code from URL query param
-      if (roomFromUrl) {
+      if (savedRoom) {
         const roomInput = document.getElementById("roomCodeInput");
-        roomInput.value = roomFromUrl.trim().toUpperCase();
-        roomInput.disabled = true;
+        roomInput.value = savedRoom.trim().toUpperCase();
+        if (roomFromUrl) roomInput.disabled = true;
+
+        // AUTOMATIC RECONNECT ON PAGE REFRESH
+        if (savedName && savedSection && savedRoom) {
+          connectToHost();
+        }
       }
     });
 
@@ -159,7 +166,7 @@
       if (!section) return alert("Please enter your section.");
       if (!code) return alert("Please enter a valid room code.");
 
-      // Save credentials locally
+      // Save credentials locally for auto-reconnect on refresh
       localStorage.setItem("qb_name", name);
       localStorage.setItem("qb_section", section);
       localStorage.setItem("qb_room", code);
@@ -171,7 +178,7 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
-          // Hide join screen & show gameplay screen
+          // Bypasses join screen permanently on connection
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
@@ -190,6 +197,10 @@
       });
 
       peer.on('error', (err) => {
+        // Clear saved room if connection fails
+        localStorage.removeItem("qb_room");
+        document.getElementById("join-screen").style.display = "block";
+        document.getElementById("game-screen").style.display = "none";
         alert("Could not connect to host. Check the Room Code and try again.");
       });
     }
@@ -198,24 +209,34 @@
       const statusEl = document.getElementById("status-msg");
 
       if (payload.type === "NEW_QUESTION") {
+        isTimerActive = false;
         isTimeUp = false;
         selectedOptionIndex = null;
+        
         statusEl.className = "";
-        statusEl.textContent = `Question ${payload.questionIndex + 1}`;
+        statusEl.textContent = `Question ${payload.questionIndex + 1} (Read question, waiting for host to start timer...)`;
         document.getElementById("question-text").textContent = payload.question;
         
         const badge = document.getElementById("category-badge");
         badge.textContent = payload.category;
         badge.className = `badge badge-${payload.category}`;
 
-        renderOptions(payload.options);
+        // Options render disabled until host starts the timer
+        renderOptions(payload.options, true);
+      } else if (payload.type === "TIMER_STARTED") {
+        isTimerActive = true;
+        isTimeUp = false;
+        enableAllOptions(); // Unlock options when host clicks timer
+        statusEl.className = "";
+        statusEl.textContent = "⏱️ Timer Started! Select your answer.";
       } else if (payload.type === "TIMER_SYNC") {
-        if (!isTimeUp) {
+        if (!isTimeUp && isTimerActive) {
           statusEl.className = "";
           statusEl.textContent = `⏱️ Time Remaining: ${payload.timeRemaining}s`;
         }
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
+        isTimerActive = false;
         disableAllOptions();
       } else if (payload.type === "REVEAL_ANSWER") {
         revealCorrectAnswer(payload.correctAnswer);
@@ -224,7 +245,7 @@
       }
     }
 
-    function renderOptions(options) {
+    function renderOptions(options, startDisabled = true) {
       const container = document.getElementById("options-container");
       container.innerHTML = "";
 
@@ -232,6 +253,7 @@
         const btn = document.createElement("button");
         btn.className = "btn-option";
         btn.id = `opt-btn-${index}`;
+        btn.disabled = startDisabled; // Locked by default until timer starts
         btn.textContent = `${String.fromCharCode(65 + index)}. ${optText}`;
         btn.onclick = () => submitAnswer(index);
         container.appendChild(btn);
@@ -239,7 +261,7 @@
     }
 
     function submitAnswer(selectedIndex) {
-      if (isTimeUp) return;
+      if (!isTimerActive || isTimeUp) return;
 
       selectedOptionIndex = selectedIndex;
 
@@ -260,6 +282,11 @@
       const statusEl = document.getElementById("status-msg");
       statusEl.className = "";
       statusEl.textContent = "Answer Selected! (You can change it before time runs out)";
+    }
+
+    function enableAllOptions() {
+      const buttons = document.querySelectorAll(".btn-option");
+      buttons.forEach(btn => btn.disabled = false);
     }
 
     function disableAllOptions() {
