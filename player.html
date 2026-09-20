@@ -105,6 +105,7 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
+    // Persistent Unique Player ID
     let playerId = localStorage.getItem("qb_pid");
     if (!playerId) {
       playerId = 'pid_' + Math.random().toString(36).substring(2, 11);
@@ -123,15 +124,12 @@
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
 
-      // CHECK IF SCANNED QR IS DIFFERENT FROM PREVIOUS ROOM SESSION
+      // Handle scanning a different room QR code
       if (roomFromUrl && roomFromUrl !== savedRoom) {
-        // PURGE OLD SESSION COMPLETELY
         clearSessionState();
-        
         const roomInput = document.getElementById("roomCodeInput");
         roomInput.value = roomFromUrl;
         roomInput.disabled = true;
-
         document.getElementById("join-screen").style.display = "block";
         document.getElementById("game-screen").style.display = "none";
         return;
@@ -143,7 +141,7 @@
         if (roomFromUrl) roomInput.disabled = true;
       }
 
-      // Reconnect ONLY if staying in the same room code
+      // Reconnect immediately if active session in the same room
       if (isJoined && savedName && savedSection && savedRoom) {
         document.getElementById("join-screen").style.display = "none";
         document.getElementById("game-screen").style.display = "block";
