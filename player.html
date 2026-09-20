@@ -2,88 +2,199 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quiz Bee Student Screen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz Bee - Player Controller</title>
+  
+  <!-- PeerJS CDN -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- HTML5 QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
   <style>
-    body { font-family: -apple-system, sans-serif; background: #f4f6f9; padding: 20px; max-width: 500px; margin: auto; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-    button { width: 100%; padding: 14px; font-size: 1.1rem; font-weight: bold; background: #0d6efd; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
-    .option-btn { background: #e9ecef; color: #212529; }
-    .option-btn:active { background: #ffc107; }
-    .timer { font-size: 1.5rem; color: #dc3545; font-weight: bold; text-align: center; margin-bottom: 15px; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      margin: 0; padding: 20px; background-color: #f4f6f9;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
+    }
+    .card {
+      background: #ffffff; padding: 25px; border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center;
+    }
+    h2 { margin-top: 0; color: #333; }
+    input[type="text"] {
+      width: 100%; padding: 14px; margin: 12px 0; border: 2px solid #ddd;
+      border-radius: 8px; font-size: 1.2rem; text-align: center; text-transform: uppercase; letter-spacing: 2px;
+    }
+    input[type="text"]:focus { border-color: #007bff; outline: none; }
+    button {
+      width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 8px;
+      font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-primary { background-color: #007bff; color: #fff; }
+    .btn-primary:active { background-color: #0056b3; }
+    .btn-secondary { background-color: #28a745; color: #fff; }
+    .btn-option {
+      background-color: #eef2f5; color: #333; font-size: 1.1rem;
+      border: 2px solid #ccc; margin-bottom: 10px; text-align: left; padding: 12px 16px;
+    }
+    .btn-option:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    /* QR Reader Modal */
+    #reader-modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); z-index: 1000;
+      justify-content: center; align-items: center; flex-direction: column;
+    }
+    #reader-box { width: 90%; max-width: 380px; background: #fff; padding: 20px; border-radius: 12px; }
   </style>
 </head>
 <body>
 
+  <!-- JOIN SCREEN -->
   <div class="card" id="join-screen">
-    <h2>🏆 Join Quiz Bee</h2>
-    <input type="text" id="room-input" placeholder="Enter Room Code (e.g., 4821)" />
-    <input type="text" id="name-input" placeholder="Enter Your Full Name" />
-    <button onclick="joinGame()">Join Session</button>
+    <h2>Join Quiz Bee</h2>
+    <input type="text" id="playerNameInput" placeholder="Enter Your Name" />
+    <input type="text" id="roomCodeInput" placeholder="4-Digit Room Code" maxlength="4" />
+    <button class="btn-primary" onclick="connectToHost()">Join Room</button>
+    <button class="btn-secondary" onclick="openQRScanner()">📷 Scan QR Code</button>
   </div>
 
+  <!-- GAMEPLAY SCREEN -->
   <div class="card" id="game-screen" style="display: none;">
-    <div id="timer-display" class="timer">Waiting for Host...</div>
-    <h3 id="question-text">Waiting for next question...</h3>
-    <br>
-    <div id="options-container"></div>
+    <h3 id="status-msg">Waiting for host...</h3>
+    <div id="options-container" style="margin-top: 20px;"></div>
+  </div>
+
+  <!-- QR READER MODAL -->
+  <div id="reader-modal">
+    <div id="reader-box">
+      <div id="qr-reader" style="width: 100%;"></div>
+      <button onclick="closeQRScanner()" style="background:#dc3545; color:#fff; margin-top:15px;">Cancel</button>
+    </div>
   </div>
 
   <script>
     let peer = null;
-    let hostConn = null;
+    let conn = null;
+    let html5QrcodeScanner = null;
+    let isTimeUp = false;
 
-    function joinGame() {
-      const roomCode = document.getElementById('room-input').value.trim();
-      const playerName = document.getElementById('name-input').value.trim();
+    // 1. Auto-extract Room Code from URL query parameters (e.g. player.html?room=A1B2)
+    window.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const room = urlParams.get("room") || urlParams.get("code");
+      if (room) {
+        document.getElementById("roomCodeInput").value = room.trim().toUpperCase();
+      }
+    });
 
-      if (!roomCode || !playerName) return alert("Please enter both Room Code and Name!");
+    // 2. Camera QR Scanner Modal Logic
+    function openQRScanner() {
+      document.getElementById("reader-modal").style.display = "flex";
+      html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 220, height: 220 } });
+      
+      html5QrcodeScanner.render((decodedText) => {
+        let scannedCode = decodedText;
+        if (decodedText.includes("room=")) {
+          try {
+            const url = new URL(decodedText);
+            scannedCode = url.searchParams.get("room");
+          } catch(e) {}
+        }
+        if (scannedCode) {
+          document.getElementById("roomCodeInput").value = scannedCode.trim().toUpperCase();
+          closeQRScanner();
+        }
+      }, (error) => {});
+    }
+
+    function closeQRScanner() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => console.error(err));
+      }
+      document.getElementById("reader-modal").style.display = "none";
+    }
+
+    // 3. WebRTC Connection Management
+    function connectToHost() {
+      const name = document.getElementById("playerNameInput").value.trim();
+      const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+
+      if (!name || !code) return alert("Please enter both your name and room code.");
 
       peer = new Peer();
 
-      peer.on('open', () => {
-        hostConn = peer.connect(roomCode, { metadata: { name: playerName } });
+      peer.on('open', (id) => {
+        const hostPeerId = `quizbee-room-${code}`;
+        conn = peer.connect(hostPeerId, { metadata: { name: name } });
 
-        hostConn.on('open', () => {
-          document.getElementById('join-screen').style.display = 'none';
-          document.getElementById('game-screen').style.display = 'block';
+        conn.on('open', () => {
+          document.getElementById("join-screen").style.display = "none";
+          document.getElementById("game-screen").style.display = "block";
+          document.getElementById("status-msg").textContent = "Connected! Waiting for question...";
         });
 
-        hostConn.on('data', (data) => {
-          if (data.type === 'NEW_QUESTION') renderQuestion(data.payload);
-          if (data.type === 'TIMER_SYNC') document.getElementById('timer-display').innerText = `${data.payload.timeLeft}s`;
-          if (data.type === 'TIME_UP') lockButtons();
+        conn.on('data', (payload) => {
+          handleIncomingPayload(payload);
         });
+
+        conn.on('close', () => {
+          alert("Disconnected from host.");
+          location.reload();
+        });
+      });
+
+      peer.on('error', (err) => {
+        alert("Could not connect to host. Check the Room Code and try again.");
       });
     }
 
-    function renderQuestion(payload) {
-      document.getElementById('timer-display').innerText = `${payload.timeLimit}s`;
-      document.getElementById('question-text').innerText = payload.question;
-      const container = document.getElementById('options-container');
-      container.innerHTML = '';
+    // 4. Handle Host Payloads & Direct Touch Events
+    function handleIncomingPayload(payload) {
+      if (payload.type === "NEW_QUESTION") {
+        isTimeUp = false;
+        document.getElementById("status-msg").textContent = `Question ${payload.questionIndex + 1} (${payload.category})`;
+        renderOptions(payload.options);
+      } else if (payload.type === "TIME_UP") {
+        isTimeUp = true;
+        document.getElementById("status-msg").textContent = "⏱️ Time's Up!";
+        disableAllOptions();
+      }
+    }
 
-      payload.options.forEach((optText, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.innerText = optText;
-        btn.disabled = false; // Mobile state unlock fix
+    function renderOptions(options) {
+      const container = document.getElementById("options-container");
+      container.innerHTML = "";
+
+      options.forEach((optText, index) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-option";
+        btn.textContent = `${String.fromCharCode(65 + index)}. ${optText}`;
+        // Direct onclick handler fixes touch-blocking WebView bugs
         btn.onclick = () => submitAnswer(index, btn);
         container.appendChild(btn);
       });
     }
 
-    function submitAnswer(index, btnEl) {
-      hostConn.send({ type: 'SUBMIT_ANSWER', answerIndex: index });
-      lockButtons();
-      btnEl.style.background = '#ffc107';
+    function submitAnswer(selectedIndex, selectedBtn) {
+      if (isTimeUp) return;
+
+      // Lock choices locally
+      disableAllOptions();
+      selectedBtn.style.backgroundColor = "#007bff";
+      selectedBtn.style.color = "#ffffff";
+
+      conn.send({
+        type: "SUBMIT_ANSWER",
+        choiceIndex: selectedIndex
+      });
+
+      document.getElementById("status-msg").textContent = "Answer Submitted! Waiting for results...";
     }
 
-    function lockButtons() {
-      const btns = document.querySelectorAll('#options-container button');
-      btns.forEach(b => b.disabled = true);
+    function disableAllOptions() {
+      const buttons = document.querySelectorAll(".btn-option");
+      buttons.forEach(btn => btn.disabled = true);
     }
   </script>
 </body>
