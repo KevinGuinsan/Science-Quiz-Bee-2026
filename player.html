@@ -211,10 +211,11 @@
             if (btn) btn.classList.add("selected");
           }
           startPlayerTimerLoop();
-        } else { // WAITING_TIMER
+        } else { // DEFAULT TO WAITING_TIMER IF TIMER IS NOT ACTIVE
           isTimerActive = false;
           isTimeUp = false;
           renderOptions(cachedOpts, true);
+          statusEl.className = "";
           statusEl.textContent = `Question ${parseInt(cachedQIndex || 0, 10) + 1} (Read question, waiting for host to start timer...)`;
         }
       }
@@ -237,6 +238,7 @@
           if (isTimerActive) {
             isTimeUp = true;
             isTimerActive = false;
+            localStorage.setItem("qb_state_status", "TIME_UP");
             disableAllOptions();
             statusEl.textContent = "⏱️ Time's Up!";
           }
@@ -344,6 +346,7 @@
         isTimeUp = false;
         selectedOptionIndex = null;
         
+        // Strictly set state to WAITING_TIMER when a question is pushed
         localStorage.setItem("qb_question", payload.question);
         localStorage.setItem("qb_category", payload.category);
         localStorage.setItem("qb_options", JSON.stringify(payload.options));
@@ -362,6 +365,17 @@
         badge.className = `badge badge-${payload.category}`;
 
         renderOptions(payload.options, true);
+      } else if (payload.type === "RESET_TO_WAITING") {
+        clearInterval(playerTimerLoop);
+        isTimerActive = false;
+        isTimeUp = false;
+        localStorage.setItem("qb_state_status", "WAITING_TIMER");
+        localStorage.removeItem("qb_end_time");
+        
+        const qIndex = localStorage.getItem("qb_qindex") || 0;
+        statusEl.className = "";
+        statusEl.textContent = `Question ${parseInt(qIndex, 10) + 1} (Read question, waiting for host to start timer...)`;
+        disableAllOptions();
       } else if (payload.type === "TIMER_STARTED") {
         isTimerActive = true;
         isTimeUp = false;
