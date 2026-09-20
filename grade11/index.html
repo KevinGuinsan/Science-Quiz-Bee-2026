@@ -30,16 +30,17 @@
 </head>
 <body onload="initHostRoom(); selectSet('SET_A');">
 
-  <h1>Grade 11 Science Quiz Bee Controller</h1>
+  <h1>Grade 11 General Chemistry Controller</h1>
 
   <div class="layout">
-    <!-- LOBBY & QR CODE CARD -->
+    <!-- LOBBY & DISPLAY QR CODE CARD (Host Generates QR Only) -->
     <div class="panel" style="max-width: 320px; text-align: center;">
       <h3>ROOM CODE</h3>
       <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
       
+      <!-- Generated QR Code Render Box -->
       <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
-      <p style="font-size: 0.85rem; color: #666;">Scan with camera or visit <strong>player.html</strong> to join.</p>
+      <p style="font-size: 0.85rem; color: #666;">Students scan this QR code to join automatically.</p>
       
       <hr/>
       <h4>Connected Players</h4>
@@ -90,7 +91,7 @@
 
   <script>
     function selectSet(setKey) {
-      changeQuestionSet(setKey); // Switches dataset in host-app.js
+      changeQuestionSet(setKey); // Switches active dataset in host-app.js
       renderItemButtons();
 
       if (activeDataset && activeDataset.length > 0) {
@@ -102,7 +103,10 @@
       const container = document.getElementById("item-buttons");
       container.innerHTML = "";
       
-      if (!activeDataset) return;
+      if (!activeDataset || activeDataset.length === 0) {
+        container.innerHTML = "<p style='color:red;'>No questions found in dataset. Ensure questions.js exports QUIZ_DATASETS or QUIZ_DATASET.</p>";
+        return;
+      }
 
       activeDataset.forEach((q, idx) => {
         const btn = document.createElement("button");
