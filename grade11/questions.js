@@ -2,7 +2,7 @@
  * Quiz Bee Question Bank & Helper Functions
  */
 
-const rawQuestionBank = {
+export const rawQuestionBank = {
   1: [
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which quantity describes rotational motion rather than translational motion?", options: ["Linear velocity", "Angular velocity", "Displacement", "Acceleration"], answer: 1 },
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which condition poses an electrical hazard caused by connecting too many appliances to one outlet?", options: ["Damaged insulation", "Faulty wiring", "Overloading", "Electrocution"], answer: 2 },
@@ -110,7 +110,15 @@ const rawQuestionBank = {
   ]
 };
 
-function shuffleArray(array) {
+// Also map string keys 'A', 'B', 'C' to 1, 2, 3 for controller string selects
+rawQuestionBank["A"] = rawQuestionBank[1];
+rawQuestionBank["B"] = rawQuestionBank[2];
+rawQuestionBank["C"] = rawQuestionBank[3];
+rawQuestionBank["Question Set A"] = rawQuestionBank[1];
+rawQuestionBank["Question Set B"] = rawQuestionBank[2];
+rawQuestionBank["Question Set C"] = rawQuestionBank[3];
+
+export function shuffleArray(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -119,7 +127,7 @@ function shuffleArray(array) {
   return arr;
 }
 
-function prepareShuffledSet(rawSet) {
+export function prepareShuffledSet(rawSet) {
   const easy = shuffleArray(rawSet.filter(q => q.round === "Easy Round"));
   const moderate = shuffleArray(rawSet.filter(q => q.round === "Moderate Round"));
   const difficult = shuffleArray(rawSet.filter(q => q.round === "Difficult Round"));
