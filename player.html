@@ -23,8 +23,10 @@
       width: 100%; padding: 12px; margin: 6px 0; border: 2px solid #ddd;
       border-radius: 8px; font-size: 1rem; text-align: center; box-sizing: border-box;
     }
+    input[type="text"]:disabled {
+      background-color: #e9ecef; color: #495057; cursor: not-allowed; border-color: #ced4da;
+    }
     #roomCodeInput { text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
-    input[type="text"]:focus { border-color: #007bff; outline: none; }
     button {
       width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 8px;
       font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
@@ -53,7 +55,7 @@
 </head>
 <body>
 
-  <!-- JOIN SCREEN (Contains inputs & Scan QR button; permanently hidden once joined) -->
+  <!-- JOIN SCREEN (Contains input fields & Scan button; hidden permanently once connected) -->
   <div class="card" id="join-screen">
     <h2>Join Quiz Bee</h2>
     <input type="text" id="playerNameInput" placeholder="Enter Your Full Name" />
@@ -97,12 +99,16 @@
     let html5QrcodeScanner = null;
     let isTimeUp = false;
 
-    // Auto-extract room code from URL parameter when scanned via camera app
+    // Auto-extract and lock room code when opening via scanned QR URL (e.g. player.html?room=A1B2)
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const room = urlParams.get("room") || urlParams.get("code");
+      
       if (room) {
-        document.getElementById("roomCodeInput").value = room.trim().toUpperCase();
+        const roomInput = document.getElementById("roomCodeInput");
+        roomInput.value = room.trim().toUpperCase();
+        // LOCK THE ROOM CODE FIELD SO STUDENTS CANNOT DELETE OR CHANGE IT
+        roomInput.disabled = true;
       }
     });
 
@@ -119,7 +125,9 @@
           } catch(e) {}
         }
         if (scannedCode) {
-          document.getElementById("roomCodeInput").value = scannedCode.trim().toUpperCase();
+          const roomInput = document.getElementById("roomCodeInput");
+          roomInput.value = scannedCode.trim().toUpperCase();
+          roomInput.disabled = true; // Lock field on successful camera scan
           closeQRScanner();
         }
       }, (error) => {});
@@ -146,7 +154,7 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
-          // HIDE JOIN SCREEN & SCAN QR BUTTON PERMANENTLY
+          // HIDE JOIN SCREEN & SCAN BUTTON PERMANENTLY ONCE JOINED
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
