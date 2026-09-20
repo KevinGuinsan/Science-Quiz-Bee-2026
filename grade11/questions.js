@@ -1,5 +1,5 @@
 /**
- * Grade 11 Physical Science & Chemistry Question Bank Module
+ * Grade 11 Science Quiz Bee Bank Module
  * Preserves original short-answer / identification format for the Difficult round.
  * 
  * Timers:
