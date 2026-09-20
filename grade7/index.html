@@ -4,203 +4,181 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Science 7 Quiz Bee Host</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    body {
-      background-color: #f4f6f9;
-      color: #333;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    .container {
-      background: #ffffff;
-      width: 100%;
-      max-width: 800px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      padding: 30px;
-    }
-
-    header {
-      border-bottom: 2px solid #eef2f5;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      color: #1a252f;
-    }
-
-    .badge {
-      background-color: #3498db;
-      color: #fff;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
-    .question-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .question-text {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 15px;
-    }
-
-    .options-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .option-btn {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 12px 15px;
-      font-size: 0.95rem;
-      text-align: left;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .option-btn:hover {
-      border-color: #3498db;
-      background: #f0f7fc;
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-
-    .btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-
-    .btn-primary {
-      background: #27ae60;
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: #219150;
-    }
-
-    .btn-secondary {
-      background: #95a5a6;
-      color: white;
-    }
-
-    .btn-secondary:hover {
-      background: #7f8c8d;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
+    .layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
+    .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
+    h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
+    .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; color: #2c3e50; }
+    #qrcode { display: flex; justify-content: center; margin-bottom: 15px; }
+    .timer-display { font-size: 2.2rem; font-weight: bold; text-align: center; color: #e74c3c; margin: 15px 0; font-family: monospace; }
+    .badge { background-color: #3498db; color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .question-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .question-text { font-size: 1.15rem; font-weight: 600; color: #2c3e50; margin-bottom: 15px; }
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .option-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 15px; font-size: 0.95rem; text-align: left; opacity: 0.6; cursor: not-allowed; }
+    .option-btn.active { opacity: 1; cursor: pointer; }
+    .controls { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s ease; }
+    .btn-timer { background: #e67e22; color: white; }
+    .btn-timer:hover { background: #d35400; }
+    .btn-primary { background: #27ae60; color: white; }
+    .btn-primary:hover { background: #219150; }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .leaderboard-table th, .leaderboard-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.9rem; }
+    .leaderboard-table th { background-color: #f8fafc; color: #64748b; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <header>
-      <h1>Science 7 Quiz Bee Platform</h1>
-      <span id="category-badge" class="badge">READY</span>
-    </header>
+  <div class="layout-grid">
+    <!-- Sidebar: Room Info, QR Code & Live Standings -->
+    <div class="card">
+      <h1>Quiz Bee Room</h1>
+      <div id="room-code-display" class="room-box">CODE: ----</div>
+      <div id="qrcode"></div>
+      
+      <h2 style="font-size: 1.1rem; margin-top: 15px;">Live Standings</h2>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Section</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          <tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-    <main id="quiz-app">
+    <!-- Main Game Display -->
+    <div class="card">
+      <header style="display:flex; justify-size:space-between; justify-content: space-between; align-items:center; border-bottom:2px solid #eef2f5; padding-bottom:10px; margin-bottom:15px;">
+        <h2>Science 7 Host View</h2>
+        <span id="category-badge" class="badge">EASY (10s)</span>
+      </header>
+
       <div class="question-card">
-        <div id="question-text" class="question-text">
-          Click "Next Question" to load the question bank.
-        </div>
-        <div id="options-container" class="options-grid">
-          <!-- Option buttons will be dynamically rendered here -->
-        </div>
+        <div id="question-text" class="question-text">Loading question...</div>
+        <div id="options-container" class="options-grid"></div>
       </div>
 
+      <div id="timer-display" class="timer-display">10.00s</div>
+
       <div class="controls">
+        <button id="start-timer-btn" class="btn btn-timer">Start Timer & Allow Answers</button>
         <button id="prev-btn" class="btn btn-secondary">Previous</button>
         <button id="next-btn" class="btn btn-primary">Next Question</button>
       </div>
-    </main>
+    </div>
   </div>
 
-  <!-- Javascript ES Module Execution -->
   <script type="module">
     import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
 
+    // State Variables
     let currentIndex = 0;
+    let timerInterval = null;
+    let roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    
+    // Host-Side Score Registry (Mapped to persistent player IDs)
+    let players = {};
 
+    // UI Elements
+    const roomCodeEl = document.getElementById('room-code-display');
+    const qrContainer = document.getElementById('qrcode');
     const questionTextEl = document.getElementById('question-text');
     const optionsContainerEl = document.getElementById('options-container');
     const categoryBadgeEl = document.getElementById('category-badge');
+    const timerDisplayEl = document.getElementById('timer-display');
+    const startTimerBtn = document.getElementById('start-timer-btn');
     const nextBtn = document.getElementById('next-btn');
     const prevBtn = document.getElementById('prev-btn');
+    const leaderboardBody = document.getElementById('leaderboard-body');
 
+    // 1. Initialize Room & QR Code
+    roomCodeEl.textContent = `CODE: ${roomCode}`;
+    const playerJoinUrl = `${window.location.origin}/player.html?room=${roomCode}`;
+    new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
+
+    // 2. Render Question UI
     function renderQuestion(index) {
+      clearInterval(timerInterval);
       const qData = getSanitizedQuestionForClient(index);
       if (!qData) return;
 
       categoryBadgeEl.textContent = `${qData.category} (${qData.timeLimit}s)`;
       questionTextEl.textContent = `${index + 1}. ${qData.question}`;
+      timerDisplayEl.textContent = `${qData.timeLimit.toFixed(2)}s`;
       optionsContainerEl.innerHTML = '';
 
       if (qData.type === 'MULTIPLE_CHOICE') {
-        qData.options.forEach((opt, idx) => {
+        qData.options.forEach((opt) => {
           const btn = document.createElement('button');
           btn.className = 'option-btn';
           btn.textContent = opt;
-          btn.addEventListener('click', () => {
-            const isCorrect = verifyAnswer(index, idx);
-            alert(isCorrect ? "Correct Choice!" : "Incorrect Choice!");
-          });
           optionsContainerEl.appendChild(btn);
         });
       } else if (qData.type === 'IDENTIFICATION') {
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = 'Type student answer here...';
+        input.disabled = true;
+        input.placeholder = 'Students will type answer when timer starts...';
         input.style.cssText = 'width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;';
-        
-        const submitBtn = document.createElement('button');
-        submitBtn.className = 'btn btn-primary';
-        submitBtn.textContent = 'Verify Input';
-        submitBtn.style.marginTop = '10px';
-        submitBtn.addEventListener('click', () => {
-          const isCorrect = verifyAnswer(index, input.value);
-          alert(isCorrect ? "Correct Answer!" : "Incorrect Answer!");
-        });
-
         optionsContainerEl.appendChild(input);
-        optionsContainerEl.appendChild(submitBtn);
       }
     }
 
+    // 3. Start Timer Trigger Functionality
+    startTimerBtn.addEventListener('click', () => {
+      const qData = getSanitizedQuestionForClient(currentIndex);
+      const durationMs = qData.timeLimit * 1000;
+      const endTime = Date.now() + durationMs;
+
+      // Enable UI Options
+      document.querySelectorAll('.option-btn').forEach(btn => btn.classList.add('active'));
+      const textInput = optionsContainerEl.querySelector('input');
+      if (textInput) textInput.disabled = false;
+
+      // High-Frequency 30ms Loop Calculation
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const remaining = Math.max(0, endTime - Date.now());
+        timerDisplayEl.textContent = `${(remaining / 1000).toFixed(2)}s`;
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          timerDisplayEl.textContent = "0.00s (TIME'S UP)";
+          // Disable Options
+          document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active'));
+          if (textInput) textInput.disabled = true;
+        }
+      }, 30);
+    });
+
+    // 4. Standings Render Helper
+    function updateLeaderboardUI() {
+      const sorted = Object.values(players).sort((a, b) => b.score - a.score);
+      leaderboardBody.innerHTML = '';
+      
+      if (sorted.length === 0) {
+        leaderboardBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>`;
+        return;
+      }
+
+      sorted.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td>${p.score} pts</td>`;
+        leaderboardBody.appendChild(tr);
+      });
+    }
+
+    // Navigation Listeners
     nextBtn.addEventListener('click', () => {
       if (currentIndex < questions.length - 1) {
         currentIndex++;
