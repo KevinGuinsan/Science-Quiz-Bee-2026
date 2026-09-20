@@ -108,6 +108,7 @@
     
     let timerInterval = null;
     let activeEndTime = null;
+    let submittedAnswers = {}; 
     let phoneConnections = [];
 
     document.getElementById('set-select').value = currentSetKey;
@@ -118,7 +119,6 @@
     const channel = new BroadcastChannel(`qb_channel_${roomCode}`);
     channel.onmessage = (e) => handleIncomingMessage(e.data);
 
-    // Cross-Device Broker for Mobile Phones
     const peer = new Peer(`qb_host_${roomCode}`);
     peer.on('connection', (conn) => {
       phoneConnections.push(conn);
@@ -146,22 +146,7 @@
         updateLeaderboardUI();
         dispatchCurrentQuestion();
       } else if (msg.type === 'SUBMIT_ANSWER') {
-        const q = currentQuestions[selectedIndex];
-        if (!q) return;
-
-        let isCorrect = false;
-        if (q.type === 'mc') {
-          isCorrect = Number(msg.answer) === Number(q.answer);
-        } else {
-          const cleanInput = String(msg.answer).trim().toLowerCase();
-          isCorrect = cleanInput === String(q.answer).trim().toLowerCase();
-        }
-
-        if (isCorrect && connectedPlayers[msg.uuid]) {
-          connectedPlayers[msg.uuid].score += (q.points || 1);
-          localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
-          updateLeaderboardUI();
-        }
+        submittedAnswers[msg.uuid] = msg.answer;
       }
     }
 
@@ -222,12 +207,45 @@
 
       broadcastPayload({
         type: 'QUESTION_DISPATCH',
-        question: q
+        question: q,
+        leaderboard: connectedPlayers
+      });
+    }
+
+    function evaluateRoundAnswers() {
+      const q = currentQuestions[selectedIndex];
+      if (!q) return;
+
+      Object.keys(submittedAnswers).forEach(pid => {
+        const ans = submittedAnswers[pid];
+        let isCorrect = false;
+
+        if (q.type === 'mc') {
+          isCorrect = Number(ans) === Number(q.answer);
+        } else {
+          const cleanInput = String(ans).trim().toLowerCase();
+          isCorrect = cleanInput === String(q.answer).trim().toLowerCase();
+        }
+
+        if (isCorrect && connectedPlayers[pid]) {
+          connectedPlayers[pid].score += (q.points || 1);
+        }
+      });
+
+      localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
+      updateLeaderboardUI();
+
+      broadcastPayload({
+        type: 'TIME_UP',
+        correctAnswer: q.answer,
+        type: q.type,
+        leaderboard: connectedPlayers
       });
     }
 
     function renderQuestion(index) {
       clearInterval(timerInterval);
+      submittedAnswers = {}; 
       const q = currentQuestions[index];
       if (!q) return;
 
@@ -266,6 +284,7 @@
 
       const durationMs = (q.timer || 15) * 1000;
       activeEndTime = Date.now() + durationMs;
+      submittedAnswers = {};
 
       const textInput = optionsContainer.querySelector('input');
       if (textInput) textInput.disabled = false;
@@ -286,6 +305,7 @@
           clearInterval(timerInterval);
           timerDisplay.textContent = "0.00s (TIME'S UP)";
           if (textInput) textInput.disabled = true;
+          evaluateRoundAnswers();
         }
       }, 30);
     });
