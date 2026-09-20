@@ -104,26 +104,21 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
-    // Auto-fill & Auto-reconnect via localStorage or URL
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomFromUrl = urlParams.get("room") || urlParams.get("code");
       
       const savedName = localStorage.getItem("qb_name");
       const savedSection = localStorage.getItem("qb_section");
-      const savedRoom = localStorage.getItem("qb_room") || roomFromUrl;
 
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
 
-      if (savedRoom) {
+      // Populate & lock Room Code from URL query param
+      if (roomFromUrl) {
         const roomInput = document.getElementById("roomCodeInput");
-        roomInput.value = savedRoom.trim().toUpperCase();
-        if (roomFromUrl) roomInput.disabled = true;
-
-        if (savedName && savedSection && savedRoom) {
-          connectToHost();
-        }
+        roomInput.value = roomFromUrl.trim().toUpperCase();
+        roomInput.disabled = true;
       }
     });
 
@@ -157,11 +152,14 @@
 
     function connectToHost() {
       const name = document.getElementById("playerNameInput").value.trim();
-      const section = document.getElementById("playerSectionInput").value.trim() || "N/A";
+      const section = document.getElementById("playerSectionInput").value.trim();
       const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
 
-      if (!name || !code) return alert("Please enter your name and room code.");
+      if (!name) return alert("Please enter your name.");
+      if (!section) return alert("Please enter your section.");
+      if (!code) return alert("Please enter a valid room code.");
 
+      // Save credentials locally
       localStorage.setItem("qb_name", name);
       localStorage.setItem("qb_section", section);
       localStorage.setItem("qb_room", code);
@@ -173,6 +171,7 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
+          // Hide join screen & show gameplay screen
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
@@ -284,7 +283,6 @@
         }
       });
 
-      // Display explicit status message to user
       if (selectedOptionIndex === correctIndex) {
         statusEl.className = "status-correct";
         statusEl.textContent = "🎉 Correct! Great job!";
