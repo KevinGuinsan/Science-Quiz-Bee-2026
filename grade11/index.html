@@ -3,27 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Grade 11 Gen Chem Quiz Bee Host</title>
+  <title>Grade 11 Host Controller</title>
 
   <!-- External CDN Libraries -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Grade 11 Questions & Relative Core Engine -->
+  <!-- Grade 11 Dataset & Shared Core Engine -->
   <script src="questions.js"></script>
   <script src="../host-app.js"></script>
 
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8f9fa; }
     .layout { display: flex; gap: 20px; flex-wrap: wrap; }
-    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
-    button { padding: 10px 16px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; margin-right: 8px; }
+    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-width: 320px; }
+    button { padding: 10px 14px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; margin-right: 6px; margin-bottom: 8px; }
     .btn-timer { background: #ffc107; color: #212529; }
     .btn-next { background: #007bff; color: white; }
     .btn-csv { background: #28a745; color: white; }
+    select { padding: 10px; font-size: 1rem; border-radius: 6px; border: 2px solid #007bff; font-weight: bold; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #fff; font-weight: bold; }
+    .badge-EASY { background-color: #28a745; }
+    .badge-MODERATE { background-color: #ffc107; color: #212529; }
+    .badge-DIFFICULT { background-color: #dc3545; }
   </style>
 </head>
-<body onload="initHostRoom()">
+<body onload="initHostRoom(); selectSet('SET_A');">
 
   <h1>Grade 11 General Chemistry Controller</h1>
 
@@ -33,7 +38,6 @@
       <h3>ROOM CODE</h3>
       <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
       
-      <!-- Dynamic QR Code Renders Here -->
       <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
       <p style="font-size: 0.85rem; color: #666;">Scan with camera or visit <strong>player.html</strong> to join.</p>
       
@@ -44,23 +48,40 @@
 
     <!-- HOST CONTROLLER CARD -->
     <div class="panel">
-      <div id="question-area">
-        <h2 id="q-category">Category: --</h2>
-        <p id="q-text" style="font-size: 1.2rem;">Click "Send First Question" to begin.</p>
-        <ul id="q-options"></ul>
+      <!-- SET SELECTOR DROPDOWN -->
+      <div style="margin-bottom: 15px;">
+        <label for="setSelect"><strong>Active Question Set:</strong></label><br/>
+        <select id="setSelect" onchange="selectSet(this.value)" style="margin-top: 5px;">
+          <option value="SET_A">Question Set A</option>
+          <option value="SET_B">Question Set B</option>
+          <option value="SET_C">Question Set C</option>
+        </select>
       </div>
 
-      <hr/>
+      <!-- ACTIVE QUESTION PREVIEW ON HOST SCREEN -->
+      <div id="question-area" style="background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 id="q-category" style="margin: 0; color: #333;">Select an item below</h3>
+          <span id="q-badge" class="badge badge-EASY">EASY</span>
+        </div>
+        <h2 id="q-text" style="font-size: 1.25rem; font-weight: 600; margin: 12px 0; color: #111;">--</h2>
+        <ol id="q-options" style="font-size: 1.05rem; line-height: 1.6;"></ol>
+      </div>
+
+      <!-- ITEM DISPATCH BUTTONS -->
+      <div style="margin-bottom: 15px;">
+        <label><strong>Dispatch Question to All Players:</strong></label><br/>
+        <div id="item-buttons" style="margin-top: 8px;"></div>
+      </div>
 
       <div>
-        <button class="btn-next" onclick="sendQuestionToPlayers(0)">🚀 Send First Question</button>
         <button class="btn-timer" onclick="startManualTimer()">⏱️ Start Timer</button>
-        <h2 style="display: inline-block; margin-left: 20px;">Timer: <span id="timer-display">--</span></h2>
+        <h2 style="display: inline-block; margin-left: 15px;">Timer: <span id="timer-display">--</span></h2>
       </div>
 
       <hr style="margin-top:20px;"/>
 
-      <h3>Live Category Scoreboard</h3>
+      <h3>🏆 Live Scoreboard (Synchronized with Players)</h3>
       <div id="scoreboard-display"></div>
       
       <button class="btn-csv" style="margin-top: 15px;" onclick="exportScoresCSV()">📊 Export Scores (CSV)</button>
@@ -68,14 +89,50 @@
   </div>
 
   <script>
-    function updateHostQuestionUI() {
-      if (!currentQuestion) return;
-      document.getElementById("q-category").textContent = `Category: ${currentQuestion.category}`;
-      document.getElementById("q-text").textContent = currentQuestion.question;
+    function selectSet(setKey) {
+      changeQuestionSet(setKey); // Switches dataset in host-app.js
+      renderItemButtons();
+
+      if (activeDataset && activeDataset.length > 0) {
+        previewQuestion(0);
+      }
+    }
+
+    function renderItemButtons() {
+      const container = document.getElementById("item-buttons");
+      container.innerHTML = "";
       
-      const optList = document.getElementById("q-options");
-      optList.innerHTML = currentQuestion.options
-        .map((opt, i) => `<li>${String.fromCharCode(65 + i)}. ${opt}</li>`).join("");
+      if (!activeDataset) return;
+
+      activeDataset.forEach((q, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-next";
+        btn.textContent = `Q${idx + 1} (${q.category ? q.category.substring(0, 1) : 'E'})`;
+        btn.onclick = () => {
+          sendQuestionToPlayers(idx);
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function previewQuestion(idx) {
+      if (!activeDataset || !activeDataset[idx]) return;
+      const q = activeDataset[idx];
+      const selectedSetKey = document.getElementById("setSelect").value;
+      
+      document.getElementById("q-category").textContent = `${selectedSetKey} — Question ${idx + 1} of ${activeDataset.length}`;
+      
+      const badge = document.getElementById("q-badge");
+      badge.textContent = q.category || "EASY";
+      badge.className = `badge badge-${q.category || 'EASY'}`;
+      
+      document.getElementById("q-text").textContent = q.question;
+      document.getElementById("q-options").innerHTML = q.options
+        .map((opt, i) => `<li><strong>${String.fromCharCode(65 + i)}.</strong> ${opt}</li>`).join("");
+    }
+
+    function updateHostQuestionUI() {
+      previewQuestion(currentQuestionIndex);
     }
   </script>
 </body>
