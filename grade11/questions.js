@@ -1,5 +1,5 @@
 /**
- * Grade 11 Chemistry & Physics Quiz Bee Question Bank
+ * Grade 11 Science Quiz Bee Question Bank
  */
 
 const rawQuestionBank = {
@@ -106,15 +106,21 @@ function prepareShuffledSet(rawSet) {
   const moderate = shuffleArray(rawSet.filter(q => q.round === "Moderate Round"));
   const difficult = shuffleArray(rawSet.filter(q => q.round === "Difficult Round"));
   
-  // Format items for host-app.js
-  return [...easy, ...moderate, ...difficult].map((item, index) => ({
-    id: `q_${index + 1}`,
-    category: item.round.split(' ')[0].toUpperCase(), // Converts "Easy Round" -> "EASY"
-    question: item.question,
-    options: item.options,
-    correctAnswer: item.answer,
-    timeLimit: item.timer
-  }));
+  return [...easy, ...moderate, ...difficult].map((item, index) => {
+    // Fallback timers if timer property is absent
+    let defaultTimer = 15;
+    if (item.round === "Easy Round") defaultTimer = 10;
+    if (item.round === "Difficult Round") defaultTimer = 30;
+
+    return {
+      id: `q_${index + 1}`,
+      category: item.round.split(' ')[0].toUpperCase(),
+      question: item.question,
+      options: item.options || [],
+      correctAnswer: item.answer !== undefined ? item.answer : 0,
+      timeLimit: item.timer || defaultTimer
+    };
+  });
 }
 
 // Global Export mapped for host-app.js
