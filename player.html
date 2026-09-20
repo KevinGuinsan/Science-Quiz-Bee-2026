@@ -205,13 +205,14 @@
           targetEndTime = savedEndTime;
           renderOptions(cachedOpts, false);
           
+          // RESTORE SELECTED OPTION VISUALLY WHILE KEEPING BUTTONS ENABLED
           if (savedChoice !== null) {
             selectedOptionIndex = parseInt(savedChoice, 10);
             const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
             if (btn) btn.classList.add("selected");
           }
           startPlayerTimerLoop();
-        } else { // DEFAULT TO WAITING_TIMER IF TIMER IS NOT ACTIVE
+        } else {
           isTimerActive = false;
           isTimeUp = false;
           renderOptions(cachedOpts, true);
@@ -314,6 +315,15 @@
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
 
+          // SYNC PREVIOUS SELECTION BACK TO HOST ON RECONNECT
+          const existingSelection = localStorage.getItem("qb_selected_choice");
+          if (existingSelection !== null) {
+            conn.send({
+              type: "SUBMIT_ANSWER",
+              choiceIndex: parseInt(existingSelection, 10)
+            });
+          }
+
           conn.send({ type: "REQUEST_STATE_SYNC" });
         });
 
@@ -346,7 +356,6 @@
         isTimeUp = false;
         selectedOptionIndex = null;
         
-        // Strictly set state to WAITING_TIMER when a question is pushed
         localStorage.setItem("qb_question", payload.question);
         localStorage.setItem("qb_category", payload.category);
         localStorage.setItem("qb_options", JSON.stringify(payload.options));
@@ -385,6 +394,15 @@
         localStorage.setItem("qb_end_time", targetEndTime);
 
         enableAllOptions();
+
+        // Restore active selection highlight if player refreshed right as timer started
+        const savedChoice = localStorage.getItem("qb_selected_choice");
+        if (savedChoice !== null) {
+          selectedOptionIndex = parseInt(savedChoice, 10);
+          const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
+          if (btn) btn.classList.add("selected");
+        }
+
         startPlayerTimerLoop();
       } else if (payload.type === "TIME_UP") {
         clearInterval(playerTimerLoop);
