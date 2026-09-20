@@ -39,7 +39,6 @@
 <body>
 
   <div class="layout-grid">
-    <!-- Left Sidebar: Room Code & Leaderboard -->
     <div class="card">
       <h2 style="font-size:1.1rem; text-align:center; margin-bottom:10px;">ROOM CODE</h2>
       <div id="room-code-display" class="room-box">----</div>
@@ -61,7 +60,6 @@
       </table>
     </div>
 
-    <!-- Right Area: Controller Controls -->
     <div class="card">
       <h1>Grade 11 Science Quiz Bee Controller</h1>
       
@@ -99,13 +97,15 @@
 
   <script src="questions.js"></script>
   <script>
-    let roomCode = localStorage.getItem('qb_host_room') || Math.random().toString(36).substring(2, 6).toUpperCase();
+    // Generate fresh room code on host refresh and reset leaderboard
+    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     localStorage.setItem('qb_host_room', roomCode);
+    localStorage.removeItem('qb_host_players'); 
     document.getElementById('room-code-display').textContent = roomCode;
 
-    let currentSetKey = localStorage.getItem('qb_host_set') || 1;
-    let selectedIndex = parseInt(localStorage.getItem('qb_host_qindex')) || 0;
-    let connectedPlayers = JSON.parse(localStorage.getItem('qb_host_players')) || {};
+    let currentSetKey = 1;
+    let selectedIndex = 0;
+    let connectedPlayers = {};
     let currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
     
     let timerInterval = null;
@@ -195,7 +195,6 @@
         btn.textContent = `Q${idx + 1} (${code})`;
         btn.addEventListener('click', () => {
           selectedIndex = idx;
-          localStorage.setItem('qb_host_qindex', selectedIndex);
           renderNavButtons();
           renderQuestion(selectedIndex);
         });
@@ -314,10 +313,8 @@
 
     setSelect.addEventListener('change', (e) => {
       currentSetKey = e.target.value;
-      localStorage.setItem('qb_host_set', currentSetKey);
       currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
       selectedIndex = 0;
-      localStorage.setItem('qb_host_qindex', 0);
       updateCounters();
       renderNavButtons();
       renderQuestion(selectedIndex);
