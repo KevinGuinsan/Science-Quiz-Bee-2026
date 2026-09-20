@@ -29,7 +29,7 @@
     #item-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   </style>
 </head>
-<body onload="initHostRoom(); selectSet('SET_A');">
+<body onload="startHostController()">
 
   <h1>Grade 11 Science Quiz Bee Controller</h1>
 
@@ -91,8 +91,19 @@
   </div>
 
   <script>
+    function startHostController() {
+      initHostRoom();
+      selectSet('SET_A');
+    }
+
     function selectSet(setKey) {
-      changeQuestionSet(setKey); // Switches dataset inside host-app.js
+      if (typeof QUIZ_DATASETS !== "undefined" && QUIZ_DATASETS[setKey]) {
+        activeDataset = QUIZ_DATASETS[setKey];
+      } else if (typeof QUIZ_DATASET !== "undefined") {
+        activeDataset = Array.isArray(QUIZ_DATASET) ? QUIZ_DATASET : (QUIZ_DATASET[setKey] || []);
+      }
+
+      changeQuestionSet(setKey);
       renderItemButtons();
 
       if (activeDataset && activeDataset.length > 0) {
