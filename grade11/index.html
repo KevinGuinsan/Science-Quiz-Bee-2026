@@ -1,206 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Grade 11 Host Controller</title>
-
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grade 11 Science Quiz Bee Controller</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-  <script src="questions.js"></script>
-  <script src="../host-app.js"></script>
-
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8f9fa; }
-    .layout { display: flex; gap: 20px; flex-wrap: wrap; }
-    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-width: 320px; }
-    button { padding: 10px 14px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; margin-right: 6px; margin-bottom: 8px; }
-    .btn-timer { background: #ffc107; color: #212529; }
-    .btn-next { background: #007bff; color: white; }
-    .btn-csv { background: #28a745; color: white; }
-    select { padding: 10px; font-size: 1rem; border-radius: 6px; border: 2px solid #007bff; font-weight: bold; }
-    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #fff; font-weight: bold; }
-    .badge-EASY { background-color: #28a745; }
-    .badge-MODERATE { background-color: #ffc107; color: #212529; }
-    .badge-DIFFICULT { background-color: #dc3545; }
-    #item-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
-    
-    .category-progress-box {
-      display: flex; gap: 15px; margin: 12px 0 18px 0; background: #eef2f5; padding: 12px 16px; border-radius: 8px; flex-wrap: wrap;
-    }
-    .progress-item { font-size: 0.95rem; font-weight: 600; color: #333; }
-    .count-number { color: #007bff; font-weight: bold; }
-    .host-opt-correct { color: #28a745; font-weight: bold; text-decoration: underline; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
+    .layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
+    .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
+    h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
+    .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.5rem; margin-bottom: 15px; color: #0066ff; }
+    #qrcode { display: flex; justify-content: center; margin-bottom: 15px; }
+    .timer-display { font-size: 1.8rem; font-weight: bold; color: #e67e22; margin: 15px 0; font-family: monospace; display: inline-block; margin-left: 15px; }
+    .badge { background-color: #27ae60; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; float: right; }
+    .badge.difficult { background-color: #e74c3c; }
+    .badge.moderate { background-color: #f39c12; }
+    .badge.easy { background-color: #27ae60; }
+    .question-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; min-height: 160px; }
+    .question-text { font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin-bottom: 15px; }
+    .options-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .option-item { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 0.95rem; }
+    .identification-input { width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f1f5f9; color: #64748b; }
+    .controls { display: flex; gap: 10px; align-items: center; margin-top: 15px; }
+    .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s ease; }
+    .btn-timer { background: #f39c12; color: white; }
+    .btn-timer:hover { background: #d35400; }
+    .btn-nav { background: #0066ff; color: white; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; }
+    .btn-nav.active { background: #0044cc; ring: 2px solid #002288; }
+    .nav-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 15px; }
+    .counters { background: #eef2f5; padding: 10px 15px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; display: flex; gap: 15px; }
+    .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .leaderboard-table th, .leaderboard-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.9rem; }
   </style>
 </head>
-<body onload="startHostController()">
+<body>
 
-  <h1>Grade 11 Science Quiz Bee Controller</h1>
-
-  <div class="layout">
-    <!-- LOBBY & DISPLAY QR CODE CARD -->
-    <div class="panel" style="max-width: 320px; text-align: center;">
-      <h3>ROOM CODE</h3>
-      <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
+  <div class="layout-grid">
+    <!-- Left Sidebar: Room Code & QR -->
+    <div class="card">
+      <h2 style="font-size:1.1rem; text-align:center; margin-bottom:10px;">ROOM CODE</h2>
+      <div id="room-code-display" class="room-box">----</div>
+      <div id="qrcode"></div>
+      <p style="font-size:0.75rem; text-align:center; color:#64748b;">Scan with phone camera or visit <b>player.html</b> to join.</p>
       
-      <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
-      <p style="font-size: 0.85rem; color: #666;">Scan with phone camera or visit <strong>player.html</strong> to join.</p>
-      
-      <hr/>
-      <h4>Connected Players</h4>
-      <ul id="player-list" style="text-align: left;"></ul>
+      <h3 style="font-size: 1rem; margin-top: 20px; border-bottom:1px solid #eee; padding-bottom:5px;">Connected Players</h3>
+      <table class="leaderboard-table">
+        <tbody id="leaderboard-body">
+          <tr><td style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- HOST CONTROLLER CARD -->
-    <div class="panel">
-      <!-- SET SELECTOR DROPDOWN -->
-      <div style="margin-bottom: 10px;">
-        <label for="setSelect"><strong>Active Question Set:</strong></label><br/>
-        <select id="setSelect" onchange="selectSet(this.value)" style="margin-top: 5px;">
-          <option value="SET_A">Question Set A</option>
-          <option value="SET_B">Question Set B</option>
-          <option value="SET_C">Question Set C</option>
+    <!-- Main Controller Panel -->
+    <div class="card">
+      <h1>Grade 11 Science Quiz Bee Controller</h1>
+      
+      <div style="margin: 15px 0;">
+        <label><b>Active Question Set:</b></label><br>
+        <select id="set-select" style="padding: 6px 12px; border-radius:6px; margin-top:5px; font-weight:600;">
+          <option value="1">Question Set A</option>
+          <option value="2">Question Set B</option>
+          <option value="3">Question Set C</option>
         </select>
       </div>
 
-      <!-- REMAINING QUESTIONS COUNTER PER CATEGORY -->
-      <div class="category-progress-box">
-        <div class="progress-item">🟢 Easy Remaining: <span id="easy-left" class="count-number">0</span></div>
-        <div class="progress-item">🟡 Moderate Remaining: <span id="mod-left" class="count-number">0</span></div>
-        <div class="progress-item">🔴 Difficult Remaining: <span id="diff-left" class="count-number">0</span></div>
+      <div class="counters">
+        <span>🟢 Easy Remaining: <span id="easy-count">0</span></span>
+        <span>🟡 Moderate Remaining: <span id="mod-count">0</span></span>
+        <span>🔴 Difficult Remaining: <span id="diff-count">0</span></span>
       </div>
 
-      <!-- ACTIVE QUESTION PREVIEW ON HOST SCREEN -->
-      <div id="question-area" style="background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 id="q-category" style="margin: 0; color: #333;">Select an item below</h3>
-          <span id="q-badge" class="badge badge-EASY">EASY</span>
-        </div>
-        <h2 id="q-text" style="font-size: 1.25rem; font-weight: 600; margin: 12px 0; color: #111;">--</h2>
-        <ol id="q-options" style="font-size: 1.05rem; line-height: 1.6;"></ol>
+      <div class="question-card">
+        <span id="round-badge" class="badge easy">EASY</span>
+        <div id="question-header" style="font-size:0.85rem; font-weight:bold; color:#64748b; margin-bottom:5px;">Select a question below</div>
+        <div id="question-text" class="question-text">--</div>
+        <div id="options-container" class="options-grid"></div>
       </div>
 
-      <!-- ITEM DISPATCH BUTTONS -->
-      <div style="margin-bottom: 15px;">
-        <label><strong>Dispatch Question to All Players:</strong></label><br/>
-        <div id="item-buttons" style="margin-top: 8px;"></div>
+      <p style="font-size:0.85rem; font-weight:bold; margin-bottom:8px;">Dispatch Question to All Players:</p>
+      <div id="nav-buttons" class="nav-grid"></div>
+
+      <div class="controls">
+        <button id="start-timer-btn" class="btn btn-timer">⏱️ Start Timer</button>
+        <div id="timer-display" class="timer-display">Timer: --</div>
       </div>
-
-      <div>
-        <button class="btn-timer" onclick="startManualTimer()">⏱️ Start Timer</button>
-        <h2 style="display: inline-block; margin-left: 15px;">Timer: <span id="timer-display">--</span></h2>
-      </div>
-
-      <hr style="margin-top:20px;"/>
-
-      <h3>🏆 Live Scoreboard (Synchronized with Players)</h3>
-      <div id="scoreboard-display"></div>
-      
-      <button class="btn-csv" style="margin-top: 15px;" onclick="exportScoresCSV()">📊 Export Scores (CSV)</button>
     </div>
   </div>
 
+  <!-- Load Questions Script and Executable Script -->
+  <script src="questions.js"></script>
   <script>
-    let dispatchedQuestionIds = new Set();
+    let currentSetKey = 1;
+    let currentQuestions = rawQuestionBank[currentSetKey];
+    let selectedIndex = 0;
+    let timerInterval = null;
 
-    function startHostController() {
-      initHostRoom();
-      selectSet('SET_A');
+    // Room Code & QR
+    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    document.getElementById('room-code-display').textContent = roomCode;
+    new QRCode(document.getElementById('qrcode'), {
+      text: `${window.location.origin}/player.html?room=${roomCode}`,
+      width: 120, height: 120
+    });
+
+    // Elements
+    const setSelect = document.getElementById('set-select');
+    const qTextEl = document.getElementById('question-text');
+    const qHeaderEl = document.getElementById('question-header');
+    const badgeEl = document.getElementById('round-badge');
+    const optionsContainer = document.getElementById('options-container');
+    const navButtonsEl = document.getElementById('nav-buttons');
+    const timerDisplay = document.getElementById('timer-display');
+    const startTimerBtn = document.getElementById('start-timer-btn');
+
+    function updateCounters() {
+      const easy = currentQuestions.filter(q => q.round === "Easy Round").length;
+      const mod = currentQuestions.filter(q => q.round === "Moderate Round").length;
+      const diff = currentQuestions.filter(q => q.round === "Difficult Round").length;
+
+      document.getElementById('easy-count').textContent = easy;
+      document.getElementById('mod-count').textContent = mod;
+      document.getElementById('diff-count').textContent = diff;
     }
 
-    function selectSet(setKey) {
-      if (typeof QUIZ_DATASETS !== "undefined" && QUIZ_DATASETS[setKey]) {
-        activeDataset = QUIZ_DATASETS[setKey];
-      } else if (typeof QUIZ_DATASET !== "undefined") {
-        activeDataset = Array.isArray(QUIZ_DATASET) ? QUIZ_DATASET : (QUIZ_DATASET[setKey] || []);
-      }
+    function renderNavButtons() {
+      navButtonsEl.innerHTML = '';
+      currentQuestions.forEach((q, idx) => {
+        const btn = document.createElement('button');
+        let code = 'E';
+        if (q.round === "Moderate Round") code = 'M';
+        if (q.round === "Difficult Round") code = 'D';
+        if (q.round === "Clincher Round") code = 'C';
 
-      dispatchedQuestionIds.clear();
-      changeQuestionSet(setKey);
-      renderItemButtons();
-      updateCategoryCounts();
-
-      if (activeDataset && activeDataset.length > 0) {
-        previewQuestion(0);
-      }
-    }
-
-    function renderItemButtons() {
-      const container = document.getElementById("item-buttons");
-      if (!container) return;
-      container.innerHTML = "";
-      
-      if (!activeDataset || activeDataset.length === 0) {
-        container.innerHTML = "<p style='color:red;'>⚠️ No questions found in dataset. Check questions.js file.</p>";
-        return;
-      }
-
-      activeDataset.forEach((q, idx) => {
-        const btn = document.createElement("button");
-        btn.className = "btn-next";
-        btn.textContent = `Q${idx + 1} (${q.category ? q.category.substring(0, 1) : 'E'})`;
-        btn.title = `Category: ${q.category || 'EASY'}`;
-        btn.onclick = () => {
-          dispatchedQuestionIds.add(q.id || idx);
-          sendQuestionToPlayers(idx);
-          updateCategoryCounts();
-        };
-        container.appendChild(btn);
+        btn.className = `btn-nav ${idx === selectedIndex ? 'active' : ''}`;
+        btn.textContent = `Q${idx + 1} (${code})`;
+        btn.addEventListener('click', () => {
+          selectedIndex = idx;
+          renderNavButtons();
+          renderQuestion(selectedIndex);
+        });
+        navButtonsEl.appendChild(btn);
       });
     }
 
-    function updateCategoryCounts() {
-      if (!activeDataset) return;
+    function renderQuestion(index) {
+      clearInterval(timerInterval);
+      const q = currentQuestions[index];
+      if (!q) return;
 
-      let easyLeft = 0;
-      let modLeft = 0;
-      let diffLeft = 0;
+      qHeaderEl.textContent = `SET_${currentSetKey} — Question ${index + 1} of ${currentQuestions.length}`;
+      qTextEl.textContent = q.question;
+      timerDisplay.textContent = `Timer: --`;
 
-      activeDataset.forEach((q, idx) => {
-        const qId = q.id || idx;
-        if (!dispatchedQuestionIds.has(qId)) {
-          const cat = (q.category || "EASY").toUpperCase();
-          if (cat === "EASY") easyLeft++;
-          else if (cat === "MODERATE") modLeft++;
-          else if (cat === "DIFFICULT") diffLeft++;
+      // Update Badge
+      badgeEl.textContent = q.round.replace(" Round", "").toUpperCase();
+      badgeEl.className = 'badge ' + (q.round === "Difficult Round" ? 'difficult' : (q.round === "Moderate Round" ? 'moderate' : 'easy'));
+
+      optionsContainer.innerHTML = '';
+
+      // MULTIPLE CHOICE RENDERING
+      if (q.type === "mc" && q.options) {
+        q.options.forEach((opt, i) => {
+          const div = document.createElement('div');
+          div.className = 'option-item';
+          div.textContent = `${String.fromCharCode(65 + i)}. ${opt}`;
+          optionsContainer.appendChild(div);
+        });
+      } 
+      // IDENTIFICATION / SHORT-ANSWER TEXT INPUT RENDERING
+      else if (q.type === "text" || !q.options) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'identification-input';
+        input.disabled = true;
+        input.placeholder = 'Students will type answer when timer starts...';
+        optionsContainer.appendChild(input);
+      }
+    }
+
+    // Timer Trigger
+    startTimerBtn.addEventListener('click', () => {
+      const q = currentQuestions[selectedIndex];
+      if (!q) return;
+
+      let remaining = q.timer || 15;
+      const textInput = optionsContainer.querySelector('input');
+      if (textInput) textInput.disabled = false;
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        remaining--;
+        timerDisplay.textContent = `Timer: ${remaining}s`;
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          timerDisplay.textContent = "Timer: 0s (TIME'S UP)";
+          if (textInput) textInput.disabled = true;
         }
-      });
+      }, 1000);
+    });
 
-      document.getElementById("easy-left").textContent = easyLeft;
-      document.getElementById("mod-left").textContent = modLeft;
-      document.getElementById("diff-left").textContent = diffLeft;
-    }
+    // Handle Set Selection Change
+    setSelect.addEventListener('change', (e) => {
+      currentSetKey = e.target.value;
+      currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
+      selectedIndex = 0;
+      updateCounters();
+      renderNavButtons();
+      renderQuestion(selectedIndex);
+    });
 
-    function previewQuestion(idx) {
-      if (!activeDataset || !activeDataset[idx]) return;
-      const q = activeDataset[idx];
-      const selectedSetKey = document.getElementById("setSelect").value;
-      
-      document.getElementById("q-category").textContent = `${selectedSetKey} — Question ${idx + 1} of ${activeDataset.length}`;
-      
-      const badge = document.getElementById("q-badge");
-      if (badge) {
-        badge.textContent = q.category || "EASY";
-        badge.className = `badge badge-${q.category || 'EASY'}`;
-      }
-      
-      document.getElementById("q-text").textContent = q.question;
-      document.getElementById("q-options").innerHTML = q.options
-        .map((opt, i) => `<li id="host-opt-${i}"><strong>${String.fromCharCode(65 + i)}.</strong> ${opt}</li>`).join("");
-    }
-
-    function revealHostAnswer(correctIdx) {
-      const targetOpt = document.getElementById(`host-opt-${correctIdx}`);
-      if (targetOpt) {
-        targetOpt.classList.add("host-opt-correct");
-        targetOpt.innerHTML += " ✅ (Correct)";
-      }
-    }
-
-    function updateHostQuestionUI() {
-      previewQuestion(currentQuestionIndex);
-    }
+    // Initial Load
+    updateCounters();
+    renderNavButtons();
+    renderQuestion(selectedIndex);
   </script>
 </body>
 </html>
