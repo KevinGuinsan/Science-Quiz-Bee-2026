@@ -9,15 +9,15 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Grade Questions & Shared Core Engine -->
+  <!-- Grade 7 Questions & Relative Core Engine -->
   <script src="questions.js"></script>
   <script src="../host-app.js"></script>
 
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f8f9fa; }
-    .layout { display: flex; gap: 20px; }
-    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; }
-    button { padding: 10px 16px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8f9fa; }
+    .layout { display: flex; gap: 20px; flex-wrap: wrap; }
+    .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
+    button { padding: 10px 16px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; margin-right: 8px; }
     .btn-timer { background: #ffc107; color: #212529; }
     .btn-next { background: #007bff; color: white; }
     .btn-csv { background: #28a745; color: white; }
@@ -28,13 +28,16 @@
   <h1>Grade 7 Science Quiz Bee Controller</h1>
 
   <div class="layout">
-    <!-- LOBBY & QR CARD -->
-    <div class="panel" style="max-width: 300px; text-align: center;">
+    <!-- LOBBY & QR CODE CARD -->
+    <div class="panel" style="max-width: 320px; text-align: center;">
       <h3>ROOM CODE</h3>
       <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
       
+      <!-- Dynamic QR Code Renders Here -->
       <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
+      <p style="font-size: 0.85rem; color: #666;">Scan with camera or visit <strong>player.html</strong> to join.</p>
       
+      <hr/>
       <h4>Connected Players</h4>
       <ul id="player-list" style="text-align: left;"></ul>
     </div>
@@ -43,7 +46,7 @@
     <div class="panel">
       <div id="question-area">
         <h2 id="q-category">Category: --</h2>
-        <p id="q-text" style="font-size: 1.2rem;">Click "Send Next Question" to begin.</p>
+        <p id="q-text" style="font-size: 1.2rem;">Click "Send First Question" to begin.</p>
         <ul id="q-options"></ul>
       </div>
 
