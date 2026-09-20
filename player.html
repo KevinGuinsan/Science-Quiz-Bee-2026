@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Quiz Bee - Player Controller</title>
+  <title>Quiz Bee - Player Screen</title>
   
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -30,7 +30,6 @@
       font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
     }
     .btn-primary { background-color: #007bff; color: #fff; }
-    .btn-primary:active { background-color: #0056b3; }
     .btn-secondary { background-color: #28a745; color: #fff; }
     .btn-option {
       background-color: #eef2f5; color: #333; font-size: 1.1rem;
@@ -54,7 +53,7 @@
 </head>
 <body>
 
-  <!-- JOIN SCREEN (Hides permanently after joining) -->
+  <!-- JOIN SCREEN (Contains inputs & Scan QR button; permanently hidden once joined) -->
   <div class="card" id="join-screen">
     <h2>Join Quiz Bee</h2>
     <input type="text" id="playerNameInput" placeholder="Enter Your Full Name" />
@@ -74,7 +73,7 @@
     <h3 id="status-msg">Connected! Waiting for host...</h3>
     <h2 id="question-text" style="font-size: 1.25rem; margin: 15px 0;"></h2>
 
-    <!-- OPTIONS -->
+    <!-- QUESTION OPTIONS -->
     <div id="options-container" style="margin-top: 15px;"></div>
 
     <!-- LIVE LEADERBOARD -->
@@ -98,7 +97,7 @@
     let html5QrcodeScanner = null;
     let isTimeUp = false;
 
-    // Auto-fill room code from QR Link parameter
+    // Auto-extract room code from URL parameter when scanned via camera app
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const room = urlParams.get("room") || urlParams.get("code");
@@ -147,7 +146,7 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
-          // Hide Join screen permanently
+          // HIDE JOIN SCREEN & SCAN QR BUTTON PERMANENTLY
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
