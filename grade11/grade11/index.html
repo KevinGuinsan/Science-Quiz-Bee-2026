@@ -3,173 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grade 11 Gen Chem Host Control Center</title>
-  
-  <!-- 1. PeerJS Library -->
+  <title>Grade 11 Science Quiz Bee Host</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-  <!-- 2. Local Grade 11 Question Dataset -->
+  <!-- 1. Load Grade 11 Questions -->
   <script src="questions.js"></script>
-
-  <!-- 3. Shared Core Host Engine (from root folder) -->
+  <!-- 2. Load Core Host Engine from Root -->
   <script src="../host-app.js"></script>
-
   <style>
-    :root {
-      --primary: #0d6efd;
-      --success: #198754;
-      --danger: #dc3545;
-      --dark: #212529;
-      --light: #f8f9fa;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #eef2f5;
-      color: var(--dark);
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      border: 1px solid #dee2e6;
-    }
-
-    .stats-bar {
-      display: flex;
-      gap: 20px;
-      justify-content: space-around;
-      text-align: center;
-    }
-
-    .stat-box {
-      flex: 1;
-    }
-
-    .stat-label {
-      font-size: 0.85rem;
-      color: #6c757d;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      color: var(--primary);
-    }
-
-    .question-box {
-      border-left: 5px solid var(--primary);
-      min-height: 120px;
-    }
-
-    .q-text {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-    }
-
-    .btn {
-      padding: 12px 24px;
-      font-size: 1rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-
-    .btn-next { background: var(--success); color: white; }
-    .btn-next:hover { background: #146c43; }
-    .btn-next:active { transform: scale(0.98); }
-
-    .leaderboard-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    .leaderboard-table th, .leaderboard-table td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #dee2e6;
-    }
-
-    .leaderboard-table th {
-      background: var(--light);
-      font-size: 0.9rem;
-      color: #495057;
-    }
+    body { font-family: -apple-system, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #f8f9fa; }
+    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .btn { padding: 10px 18px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px; margin-bottom: 5px; }
+    .btn-next { background: #0d6efd; color: white; }
+    .btn-timer { background: #ffc107; color: black; }
+    .btn-timer:disabled { background: #e0e0e0; color: #888; cursor: not-allowed; }
+    .btn-export { background: #198754; color: white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f1f3f5; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <div class="header">
-      <h2>🎙️ Grade 11 Gen Chem 1 Host</h2>
-      <a href="../index.html" style="text-decoration: none; color: #6c757d; font-weight: 600;">← Back to Portal</a>
-    </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+    <h2>🎙️ Grade 11 General Chemistry Host Control</h2>
+    <a href="../index.html" style="text-decoration: none; color: #6c757d; font-weight: bold;">← Portal Menu</a>
+  </div>
+  
+  <div class="card">
+    <div>Room Code: <strong id="room-code-display" style="font-size: 1.5rem; color: #0d6efd;">----</strong> | Connected Players: <strong id="player-count-display">0</strong></div>
+  </div>
 
-    <!-- ROOM & PLAYER STATS -->
-    <div class="card stats-bar">
-      <div class="stat-box">
-        <div class="stat-label">Room Code</div>
-        <div id="room-code-display" class="stat-value">----</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Connected Players</div>
-        <div id="player-count-display" class="stat-value">0</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Time Remaining</div>
-        <div id="timer-display" class="stat-value" style="color: var(--danger);">--</div>
-      </div>
-    </div>
+  <div class="card">
+    <h3 id="host-question-text">Click "Send Next Question" to begin session</h3>
+    <div>Timer: <strong id="timer-display" style="color: #dc3545;">--</strong></div>
+    <br>
+    <button class="btn btn-next" onclick="sendNextQuestion()">▶️ Send Next Question</button>
+    <button id="btn-start-timer" class="btn btn-timer" onclick="startQuestionTimer()" disabled>⏱️ Start Timer</button>
+    <button class="btn btn-export" onclick="exportScoresToCSV()">📊 Export Scores (CSV)</button>
+  </div>
 
-    <!-- CURRENT QUESTION CONTROL -->
-    <div class="card question-box">
-      <div class="stat-label">Current Question</div>
-      <div id="host-question-text" class="q-text">Click "Send Next Question" to start the quiz session.</div>
-      <button class="btn btn-next" onclick="sendNextQuestion()">▶️ Send Next Question</button>
-    </div>
-
-    <!-- LIVE LEADERBOARD / SCOREBOARD -->
-    <div class="card">
-      <div class="stat-label" style="margin-bottom: 10px;">🏆 Live Scoreboard</div>
-      <table class="leaderboard-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Player Name</th>
-            <th>Score</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboard-body">
-          <tr>
-            <td colspan="3" style="text-align: center; color: #6c757d;">No answers submitted yet.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="card">
+    <h3>🏆 Category Scoreboard (Grade 11)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Participant Name</th>
+          <th>Easy</th>
+          <th>Moderate</th>
+          <th>Difficult</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body">
+        <tr><td colspan="6" style="text-align: center; color: #6c757d;">No participants joined yet.</td></tr>
+      </tbody>
+    </table>
   </div>
 
 </body>
