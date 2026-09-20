@@ -9,7 +9,7 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Grade 11 Dataset & Shared Core Engine -->
+  <!-- Grade 11 Questions & Core Shared Engine -->
   <script src="questions.js"></script>
   <script src="../host-app.js"></script>
 
@@ -26,21 +26,22 @@
     .badge-EASY { background-color: #28a745; }
     .badge-MODERATE { background-color: #ffc107; color: #212529; }
     .badge-DIFFICULT { background-color: #dc3545; }
+    #item-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   </style>
 </head>
 <body onload="initHostRoom(); selectSet('SET_A');">
 
-  <h1>Grade 11 General Chemistry Controller</h1>
+  <h1>Grade 11 Science Quiz Bee Controller</h1>
 
   <div class="layout">
-    <!-- LOBBY & DISPLAY QR CODE CARD (Host Generates QR Only) -->
+    <!-- LOBBY & DISPLAY QR CODE CARD -->
     <div class="panel" style="max-width: 320px; text-align: center;">
       <h3>ROOM CODE</h3>
       <h1 id="room-code-display" style="color: #007bff; letter-spacing: 2px;">----</h1>
       
       <!-- Generated QR Code Render Box -->
       <div id="qrcode-container" style="display: flex; justify-content: center; margin: 15px 0;"></div>
-      <p style="font-size: 0.85rem; color: #666;">Students scan this QR code to join automatically.</p>
+      <p style="font-size: 0.85rem; color: #666;">Scan with phone camera or visit <strong>player.html</strong> to join.</p>
       
       <hr/>
       <h4>Connected Players</h4>
@@ -91,7 +92,7 @@
 
   <script>
     function selectSet(setKey) {
-      changeQuestionSet(setKey); // Switches active dataset in host-app.js
+      changeQuestionSet(setKey); // Switches dataset inside host-app.js
       renderItemButtons();
 
       if (activeDataset && activeDataset.length > 0) {
@@ -101,10 +102,11 @@
 
     function renderItemButtons() {
       const container = document.getElementById("item-buttons");
+      if (!container) return;
       container.innerHTML = "";
       
       if (!activeDataset || activeDataset.length === 0) {
-        container.innerHTML = "<p style='color:red;'>No questions found in dataset. Ensure questions.js exports QUIZ_DATASETS or QUIZ_DATASET.</p>";
+        container.innerHTML = "<p style='color:red;'>⚠️ No questions found in dataset. Check questions.js file.</p>";
         return;
       }
 
@@ -112,6 +114,7 @@
         const btn = document.createElement("button");
         btn.className = "btn-next";
         btn.textContent = `Q${idx + 1} (${q.category ? q.category.substring(0, 1) : 'E'})`;
+        btn.title = `Category: ${q.category || 'EASY'}`;
         btn.onclick = () => {
           sendQuestionToPlayers(idx);
         };
@@ -127,8 +130,10 @@
       document.getElementById("q-category").textContent = `${selectedSetKey} — Question ${idx + 1} of ${activeDataset.length}`;
       
       const badge = document.getElementById("q-badge");
-      badge.textContent = q.category || "EASY";
-      badge.className = `badge badge-${q.category || 'EASY'}`;
+      if (badge) {
+        badge.textContent = q.category || "EASY";
+        badge.className = `badge badge-${q.category || 'EASY'}`;
+      }
       
       document.getElementById("q-text").textContent = q.question;
       document.getElementById("q-options").innerHTML = q.options
