@@ -11,6 +11,7 @@ let currentQuestionIndex = 0;
 let currentQuestion = null;
 let timerInterval = null;
 let remainingTime = 0;
+let isTimerRunning = false;
 
 function initHostRoom() {
   roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -43,6 +44,8 @@ function initHostRoom() {
     conn.on('data', (payload) => {
       if (payload.type === "SUBMIT_ANSWER") {
         handlePlayerAnswer(conn.peer, payload.choiceIndex);
+      } else if (payload.type === "REQUEST_STATE_SYNC") {
+        syncStateToPlayer(conn.peer);
       }
     });
 
@@ -52,6 +55,30 @@ function initHostRoom() {
       broadcastLeaderboard();
     });
   });
+}
+
+function syncStateToPlayer(peerId) {
+  const player = connectedPlayers[peerId];
+  if (!player || !player.conn) return;
+
+  // Send current question payload
+  if (currentQuestion) {
+    player.conn.send({
+      type: "NEW_QUESTION",
+      questionIndex: currentQuestionIndex,
+      question: currentQuestion.question,
+      category: currentQuestion.category || "EASY",
+      options: currentQuestion.options
+    });
+
+    if (isTimerRunning) {
+      player.conn.send({ type: "TIMER_STARTED", timeLimit: remainingTime });
+      player.conn.send({ type: "TIMER_SYNC", timeRemaining: remainingTime });
+    }
+  }
+
+  // Resend leaderboard
+  broadcastLeaderboard();
 }
 
 function changeQuestionSet(setKey) {
@@ -97,6 +124,9 @@ function renderHostQRCode(code) {
 function sendQuestionToPlayers(questionIndex) {
   if (!activeDataset || !activeDataset[questionIndex]) return;
 
+  isTimerRunning = false;
+  clearInterval(timerInterval);
+
   currentQuestionIndex = questionIndex;
   currentQuestion = activeDataset[questionIndex];
 
@@ -121,9 +151,9 @@ function sendQuestionToPlayers(questionIndex) {
 
 function startManualTimer() {
   clearInterval(timerInterval);
+  isTimerRunning = true;
   remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
 
-  // Signal players to unlock option buttons
   broadcastPayload({ type: "TIMER_STARTED", timeLimit: remainingTime });
 
   timerInterval = setInterval(() => {
@@ -136,6 +166,7 @@ function startManualTimer() {
 
     if (remainingTime <= 0) {
       clearInterval(timerInterval);
+      isTimerRunning = false;
       broadcastPayload({ type: "TIME_UP" });
       gradeCurrentQuestion();
     }
