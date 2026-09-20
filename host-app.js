@@ -30,8 +30,15 @@ function initHostRoom() {
       const playerName = conn.metadata?.name || "Anonymous";
       const playerSection = conn.metadata?.section || "N/A";
       const persistentId = conn.metadata?.playerId || playerName;
+      const clientRoomCode = (conn.metadata?.roomCode || "").toUpperCase();
 
-      // 1. SEARCH FOR EXISTING PLAYER TO RETAIN SCORES ACROSS REFRESHES
+      // REJECT CONNECTION IF CLIENT ROOM CODE DOES NOT MATCH ACTIVE HOST ROOM
+      if (clientRoomCode && clientRoomCode !== roomCode) {
+        conn.close();
+        return;
+      }
+
+      // Preserve score if student is reconnecting to the SAME host room
       let existingScores = { EASY: 0, MODERATE: 0, DIFFICULT: 0 };
       
       const existingPeerKey = Object.keys(connectedPlayers).find(
@@ -40,13 +47,10 @@ function initHostRoom() {
       );
 
       if (existingPeerKey) {
-        // Retain current accumulated scores
         existingScores = connectedPlayers[existingPeerKey].scores;
-        // Purge old dead socket reference
         delete connectedPlayers[existingPeerKey];
       }
 
-      // 2. MAP NEW WEBRTC SOCKET TO EXISTING PLAYER PROFILE
       connectedPlayers[conn.peer] = {
         persistentId: persistentId,
         name: playerName,
@@ -80,7 +84,6 @@ function syncStateToPlayer(peerId) {
   const player = connectedPlayers[peerId];
   if (!player || !player.conn) return;
 
-  // Send current live question to re-sync player screen
   if (currentQuestion) {
     player.conn.send({
       type: "NEW_QUESTION",
@@ -96,7 +99,6 @@ function syncStateToPlayer(peerId) {
     }
   }
 
-  // Resend updated leaderboard
   broadcastLeaderboard();
 }
 
