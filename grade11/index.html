@@ -99,6 +99,7 @@
 
   <script src="questions.js"></script>
   <script>
+    // New room code generated on page refresh -> Resets old session leaderboard
     const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     localStorage.setItem('qb_host_room', roomCode);
     localStorage.removeItem('qb_host_players'); 
@@ -277,6 +278,7 @@
 
       optionsContainer.innerHTML = '';
 
+      // MULTIPLE CHOICE RENDERING
       if (q.type === "mc" && q.options) {
         q.options.forEach((opt, i) => {
           const div = document.createElement('div');
@@ -284,7 +286,9 @@
           div.textContent = `${String.fromCharCode(65 + i)}. ${opt}`;
           optionsContainer.appendChild(div);
         });
-      } else if (q.type === "text" || !q.options) {
+      } 
+      // IDENTIFICATION / SHORT-ANSWER TEXT FIELD RENDERING
+      else if (q.type === "text" || !q.options) {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'identification-input';
@@ -296,6 +300,7 @@
       dispatchCurrentQuestion();
     }
 
+    // High-Precision Synchronized Animation-Frame Timer Loop
     startTimerBtn.addEventListener('click', () => {
       const q = currentQuestions[selectedIndex];
       if (!q) return;
