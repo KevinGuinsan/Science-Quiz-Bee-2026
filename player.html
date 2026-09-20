@@ -1,514 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Quiz Bee - Player Screen</title>
-  
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Bee Student Portal</title>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body {
-      margin: 0; padding: 20px; background-color: #f4f6f9;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
-    }
-    .card {
-      background: #ffffff; padding: 25px; border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center;
-    }
-    h2, h3 { margin-top: 0; color: #333; }
-    input[type="text"] {
-      width: 100%; padding: 12px; margin: 6px 0; border: 2px solid #ddd;
-      border-radius: 8px; font-size: 1rem; text-align: center; box-sizing: border-box;
-    }
-    input[type="text"]:disabled { background-color: #e9ecef; color: #495057; cursor: not-allowed; }
-    #roomCodeInput { text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
-    button {
-      width: 100%; padding: 14px; margin: 8px 0; border: none; border-radius: 8px;
-      font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
-    }
-    .btn-primary { background-color: #007bff; color: #fff; }
-    .btn-secondary { background-color: #28a745; color: #fff; }
-    .btn-option {
-      background-color: #eef2f5; color: #333; font-size: 1.1rem;
-      border: 2px solid #ccc; margin-bottom: 10px; text-align: left; padding: 14px 16px; width: 100%;
-      border-radius: 8px; font-weight: 500; transition: all 0.2s;
-    }
-    .btn-option.selected { background-color: #007bff; color: #fff; border-color: #0056b3; }
-    .btn-option.correct { background-color: #28a745 !important; color: #fff !important; border-color: #1e7e34 !important; font-weight: bold; }
-    .btn-option.incorrect { background-color: #dc3545 !important; color: #fff !important; border-color: #bd2130 !important; font-weight: bold; }
-    .btn-option:disabled { cursor: not-allowed; opacity: 0.85; }
-    
-    #status-msg.status-correct { color: #28a745; font-size: 1.3rem; font-weight: bold; }
-    #status-msg.status-incorrect { color: #dc3545; font-size: 1.3rem; font-weight: bold; }
-
-    #reader-modal {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85); z-index: 1000;
-      justify-content: center; align-items: center; flex-direction: column;
-    }
-    #reader-box { width: 90%; max-width: 380px; background: #fff; padding: 20px; border-radius: 12px; }
-    .leaderboard-box { background: #f8f9fa; padding: 12px; border-radius: 8px; margin-top: 20px; text-align: left; }
-    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #fff; font-weight: bold; }
-    .badge-EASY { background-color: #28a745; }
-    .badge-MODERATE { background-color: #ffc107; color: #212529; }
-    .badge-DIFFICULT { background-color: #dc3545; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 25px; width: 100%; max-width: 450px; }
+    h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 15px; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    input[type="text"] { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+    input[disabled] { background-color: #f1f5f9; color: #64748b; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer; background: #0066ff; color: white; transition: background 0.2s ease; }
+    .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+    .badge { background-color: #3498db; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; float: right; }
+    .options-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+    .option-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 1rem; text-align: left; cursor: pointer; }
+    .option-btn:hover:not([disabled]) { border-color: #0066ff; background: #f0f7fc; }
+    .timer-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 15px; }
+    .timer-progress { height: 100%; background: #e67e22; width: 100%; transition: width 1s linear; }
   </style>
 </head>
 <body>
 
-  <!-- JOIN SCREEN -->
-  <div class="card" id="join-screen">
-    <h2>Join Quiz Bee</h2>
-    <input type="text" id="playerNameInput" placeholder="Enter Your Full Name" />
-    <input type="text" id="playerSectionInput" placeholder="Enter Your Section (e.g. 11-Newton)" />
-    <input type="text" id="roomCodeInput" placeholder="4-Digit Room Code" maxlength="4" />
-    <button class="btn-primary" onclick="connectToHost()">Join Room</button>
-    <button class="btn-secondary" id="scanQrBtn" onclick="openQRScanner()">📷 Scan QR Code</button>
-  </div>
-
-  <!-- GAMEPLAY SCREEN -->
-  <div class="card" id="game-screen" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-      <span id="player-tag" style="font-weight: bold; color: #666;"></span>
-      <span id="category-badge" class="badge badge-EASY">EASY</span>
+  <div class="card">
+    <!-- View 1: Onboarding / Join Screen -->
+    <div id="join-screen">
+      <h1>Join Quiz Bee Room</h1>
+      <form id="join-form">
+        <div class="form-group">
+          <label>ROOM CODE</label>
+          <input type="text" id="room-input" placeholder="e.g. 51WJ" maxlength="6" required style="text-transform: uppercase; font-weight: bold; letter-spacing: 2px;">
+        </div>
+        <div class="form-group">
+          <label>FULL NAME</label>
+          <input type="text" id="name-input" placeholder="e.g. Juan Cruz" required>
+        </div>
+        <div class="form-group">
+          <label>SECTION</label>
+          <input type="text" id="section-input" placeholder="e.g. 11-STEM A" required>
+        </div>
+        <button type="submit" id="join-btn" class="btn">Join Game</button>
+      </form>
     </div>
-    
-    <h3 id="status-msg">Connected! Waiting for host...</h3>
-    <h2 id="question-text" style="font-size: 1.25rem; margin: 15px 0;"></h2>
 
-    <!-- QUESTION OPTIONS -->
-    <div id="options-container" style="margin-top: 15px;"></div>
+    <!-- View 2: Active Question View -->
+    <div id="game-screen" style="display: none;">
+      <header style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
+        <span id="player-tag" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">Player</span>
+        <span id="round-tag" class="badge">EASY</span>
+      </header>
 
-    <!-- LIVE LEADERBOARD -->
-    <div class="leaderboard-box">
-      <h4 style="margin: 0 0 8px 0; color: #007bff;">🏆 Live Scoreboard</h4>
-      <div id="player-leaderboard">Waiting for scores...</div>
-    </div>
-  </div>
+      <div id="question-box" style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 15px;">
+        Waiting for host to start timer...
+      </div>
 
-  <!-- QR READER MODAL -->
-  <div id="reader-modal">
-    <div id="reader-box">
-      <div id="qr-reader" style="width: 100%;"></div>
-      <button onclick="closeQRScanner()" style="background:#dc3545; color:#fff; margin-top:15px; padding: 10px;">Cancel</button>
+      <div id="input-container" class="options-grid"></div>
+
+      <div class="timer-bar">
+        <div id="timer-progress" class="timer-progress"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    let peer = null;
-    let conn = null;
-    let html5QrcodeScanner = null;
-    let isTimerActive = false;
-    let isTimeUp = false;
-    let selectedOptionIndex = null;
-    let playerTimerLoop = null;
-    let targetEndTime = 0;
-
-    let playerId = localStorage.getItem("qb_pid");
-    if (!playerId) {
-      playerId = 'pid_' + Math.random().toString(36).substring(2, 11);
-      localStorage.setItem("qb_pid", playerId);
+    // Persistent UUID Management
+    let playerUuid = localStorage.getItem('qb_pid');
+    if (!playerUuid) {
+      playerUuid = 'pid_' + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem('qb_pid', playerUuid);
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomFromUrl = (urlParams.get("room") || urlParams.get("code") || "").trim().toUpperCase();
+    // Read URL Parameters from QR Code Scan
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+
+    const roomInput = document.getElementById('room-input');
+    const nameInput = document.getElementById('name-input');
+    const sectionInput = document.getElementById('section-input');
+    const joinForm = document.getElementById('join-form');
+    const joinScreen = document.getElementById('join-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const questionBox = document.getElementById('question-box');
+    const inputContainer = document.getElementById('input-container');
+
+    // Automatically fill and lock Room Code if joining via QR
+    if (roomFromUrl) {
+      roomInput.value = roomFromUrl.toUpperCase();
+      roomInput.readOnly = true;
+      roomInput.style.backgroundColor = '#f1f5f9';
+    }
+
+    joinForm.addEventListener('submit', (e) => {
+      e.preventDefault();
       
-      const savedName = localStorage.getItem("qb_name");
-      const savedSection = localStorage.getItem("qb_section");
-      const savedRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
-      const isJoined = localStorage.getItem("qb_joined") === "true";
+      const playerData = {
+        uuid: playerUuid,
+        room: roomInput.value.trim().toUpperCase(),
+        name: nameInput.value.trim(),
+        section: sectionInput.value.trim()
+      };
 
-      if (savedName) document.getElementById("playerNameInput").value = savedName;
-      if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
+      // Store player identity
+      localStorage.setItem('qb_player_info', JSON.stringify(playerData));
 
-      if (roomFromUrl && roomFromUrl !== savedRoom) {
-        clearSessionState();
-        const roomInput = document.getElementById("roomCodeInput");
-        roomInput.value = roomFromUrl;
-        roomInput.disabled = true;
-        document.getElementById("join-screen").style.display = "block";
-        document.getElementById("game-screen").style.display = "none";
-        return;
-      }
+      // Transition to game view
+      joinScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+      document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
 
-      if (savedRoom) {
-        const roomInput = document.getElementById("roomCodeInput");
-        roomInput.value = savedRoom;
-        if (roomFromUrl) roomInput.disabled = true;
-      }
-
-      if (isJoined && savedName && savedSection && savedRoom) {
-        document.getElementById("join-screen").style.display = "none";
-        document.getElementById("game-screen").style.display = "block";
-        document.getElementById("player-tag").textContent = `${savedName} (${savedSection})`;
-
-        restoreCachedGameState();
-        connectToHost(true);
-      }
+      // Connect to local BroadcastChannel/State engine
+      initPlayerSync(playerData);
     });
 
-    function clearSessionState() {
-      clearInterval(playerTimerLoop);
-      localStorage.removeItem("qb_joined");
-      localStorage.removeItem("qb_room");
-      localStorage.removeItem("qb_question");
-      localStorage.removeItem("qb_category");
-      localStorage.removeItem("qb_options");
-      localStorage.removeItem("qb_qindex");
-      localStorage.removeItem("qb_state_status");
-      localStorage.removeItem("qb_selected_choice");
-      localStorage.removeItem("qb_correct_answer");
-      localStorage.removeItem("qb_end_time");
-      if (conn) {
-        try { conn.close(); } catch(e) {}
-        conn = null;
-      }
-    }
+    function initPlayerSync(player) {
+      const channel = new BroadcastChannel(`quiz_bee_${player.room}`);
 
-    function restoreCachedGameState() {
-      const cachedQ = localStorage.getItem("qb_question");
-      const cachedCat = localStorage.getItem("qb_category") || "EASY";
-      const cachedOpts = JSON.parse(localStorage.getItem("qb_options") || "[]");
-      const cachedQIndex = localStorage.getItem("qb_qindex");
-      const stateStatus = localStorage.getItem("qb_state_status") || "WAITING_TIMER";
-      const savedChoice = localStorage.getItem("qb_selected_choice");
-      const savedCorrectAns = localStorage.getItem("qb_correct_answer");
-      const savedEndTime = parseInt(localStorage.getItem("qb_end_time") || "0", 10);
+      // Register presence with host
+      channel.postMessage({ type: 'PLAYER_JOIN', player: player });
 
-      if (cachedQ && cachedOpts.length > 0) {
-        document.getElementById("question-text").textContent = cachedQ;
-        const badge = document.getElementById("category-badge");
-        badge.textContent = cachedCat;
-        badge.className = `badge badge-${cachedCat}`;
+      channel.onmessage = (event) => {
+        const msg = event.data;
 
-        const statusEl = document.getElementById("status-msg");
-
-        if (stateStatus === "TIME_UP") {
-          isTimeUp = true;
-          isTimerActive = false;
-          if (savedChoice !== null) selectedOptionIndex = parseInt(savedChoice, 10);
-          
-          renderOptions(cachedOpts, true);
-          if (savedCorrectAns !== null) {
-            revealCorrectAnswer(parseInt(savedCorrectAns, 10));
-          } else {
-            statusEl.textContent = "⏱️ Time's Up!";
-            disableAllOptions();
-          }
-        } else if (stateStatus === "TIMER_RUNNING" && savedEndTime > Date.now()) {
-          isTimerActive = true;
-          isTimeUp = false;
-          targetEndTime = savedEndTime;
-          renderOptions(cachedOpts, false);
-          
-          // RESTORE SELECTED OPTION VISUALLY WHILE KEEPING BUTTONS ENABLED
-          if (savedChoice !== null) {
-            selectedOptionIndex = parseInt(savedChoice, 10);
-            const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
-            if (btn) btn.classList.add("selected");
-          }
-          startPlayerTimerLoop();
-        } else {
-          isTimerActive = false;
-          isTimeUp = false;
-          renderOptions(cachedOpts, true);
-          statusEl.className = "";
-          statusEl.textContent = `Question ${parseInt(cachedQIndex || 0, 10) + 1} (Read question, waiting for host to start timer...)`;
+        if (msg.type === 'QUESTION_DISPATCH') {
+          renderQuestion(msg.question);
+        } else if (msg.type === 'START_TIMER') {
+          enableAnswering(msg.question, msg.duration);
         }
-      }
+      };
     }
 
-    function startPlayerTimerLoop() {
-      clearInterval(playerTimerLoop);
-      const statusEl = document.getElementById("status-msg");
+    function renderQuestion(q) {
+      document.getElementById('round-tag').textContent = q.round ? q.round.replace(" Round", "") : "QUESTION";
+      questionBox.textContent = q.question;
+      inputContainer.innerHTML = '';
 
-      playerTimerLoop = setInterval(() => {
-        const remainingMs = Math.max(0, targetEndTime - Date.now());
-        const sec = Math.floor(remainingMs / 1000);
-        const ms = Math.floor((remainingMs % 1000) / 10);
-
-        if (remainingMs > 0 && isTimerActive) {
-          statusEl.className = "";
-          statusEl.textContent = `⏱️ Time Remaining: ${sec}.${ms < 10 ? '0' : ''}${ms}s`;
-        } else {
-          clearInterval(playerTimerLoop);
-          if (isTimerActive) {
-            isTimeUp = true;
-            isTimerActive = false;
-            localStorage.setItem("qb_state_status", "TIME_UP");
-            disableAllOptions();
-            statusEl.textContent = "⏱️ Time's Up!";
-          }
-        }
-      }, 30);
-    }
-
-    function openQRScanner() {
-      document.getElementById("reader-modal").style.display = "flex";
-      html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 220, height: 220 } });
-      
-      html5QrcodeScanner.render((decodedText) => {
-        let scannedCode = decodedText;
-        if (decodedText.includes("room=")) {
-          try {
-            const url = new URL(decodedText);
-            scannedCode = url.searchParams.get("room");
-          } catch(e) {}
-        }
-        if (scannedCode) {
-          const formattedCode = scannedCode.trim().toUpperCase();
-          const currentRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
-
-          if (formattedCode !== currentRoom) {
-            clearSessionState();
-          }
-
-          const roomInput = document.getElementById("roomCodeInput");
-          roomInput.value = formattedCode;
-          roomInput.disabled = true;
-          closeQRScanner();
-        }
-      }, (error) => {});
-    }
-
-    function closeQRScanner() {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(err => console.error(err));
-      }
-      document.getElementById("reader-modal").style.display = "none";
-    }
-
-    function connectToHost(isSilentReconnect = false) {
-      const name = document.getElementById("playerNameInput").value.trim();
-      const section = document.getElementById("playerSectionInput").value.trim();
-      const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
-
-      if (!name) return alert("Please enter your name.");
-      if (!section) return alert("Please enter your section.");
-      if (!code) return alert("Please enter a valid room code.");
-
-      const savedRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
-      if (savedRoom && savedRoom !== code) {
-        clearSessionState();
-      }
-
-      localStorage.setItem("qb_name", name);
-      localStorage.setItem("qb_section", section);
-      localStorage.setItem("qb_room", code);
-      localStorage.setItem("qb_joined", "true");
-
-      peer = new Peer();
-
-      peer.on('open', (id) => {
-        const hostPeerId = `quizbee-room-${code}`;
-        
-        conn = peer.connect(hostPeerId, { 
-          metadata: { name: name, section: section, playerId: playerId, roomCode: code } 
+      if (q.type === 'mc' && q.options) {
+        q.options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
+          btn.disabled = true; // Disabled until host clicks Start Timer
+          inputContainer.appendChild(btn);
         });
+      } else if (q.type === 'text' || !q.options) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'typed-answer';
+        input.placeholder = 'Wait for timer to start...';
+        input.disabled = true;
 
-        conn.on('open', () => {
-          document.getElementById("join-screen").style.display = "none";
-          document.getElementById("game-screen").style.display = "block";
-          document.getElementById("player-tag").textContent = `${name} (${section})`;
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn';
+        submitBtn.style.marginTop = '10px';
+        submitBtn.textContent = 'Submit Answer';
+        submitBtn.disabled = true;
 
-          // SYNC PREVIOUS SELECTION BACK TO HOST ON RECONNECT
-          const existingSelection = localStorage.getItem("qb_selected_choice");
-          if (existingSelection !== null) {
-            conn.send({
-              type: "SUBMIT_ANSWER",
-              choiceIndex: parseInt(existingSelection, 10)
-            });
-          }
-
-          conn.send({ type: "REQUEST_STATE_SYNC" });
-        });
-
-        conn.on('data', (payload) => {
-          handleIncomingPayload(payload);
-        });
-
-        conn.on('close', () => {
-          alert("Disconnected from host.");
-          location.reload();
-        });
-      });
-
-      peer.on('error', (err) => {
-        if (!isSilentReconnect) {
-          clearSessionState();
-          document.getElementById("join-screen").style.display = "block";
-          document.getElementById("game-screen").style.display = "none";
-          alert("Could not connect to host. Check the Room Code and try again.");
-        }
-      });
-    }
-
-    function handleIncomingPayload(payload) {
-      const statusEl = document.getElementById("status-msg");
-
-      if (payload.type === "NEW_QUESTION") {
-        clearInterval(playerTimerLoop);
-        isTimerActive = false;
-        isTimeUp = false;
-        selectedOptionIndex = null;
-        
-        localStorage.setItem("qb_question", payload.question);
-        localStorage.setItem("qb_category", payload.category);
-        localStorage.setItem("qb_options", JSON.stringify(payload.options));
-        localStorage.setItem("qb_qindex", payload.questionIndex);
-        localStorage.setItem("qb_state_status", "WAITING_TIMER");
-        localStorage.removeItem("qb_selected_choice");
-        localStorage.removeItem("qb_correct_answer");
-        localStorage.removeItem("qb_end_time");
-
-        statusEl.className = "";
-        statusEl.textContent = `Question ${payload.questionIndex + 1} (Read question, waiting for host to start timer...)`;
-        document.getElementById("question-text").textContent = payload.question;
-        
-        const badge = document.getElementById("category-badge");
-        badge.textContent = payload.category;
-        badge.className = `badge badge-${payload.category}`;
-
-        renderOptions(payload.options, true);
-      } else if (payload.type === "RESET_TO_WAITING") {
-        clearInterval(playerTimerLoop);
-        isTimerActive = false;
-        isTimeUp = false;
-        localStorage.setItem("qb_state_status", "WAITING_TIMER");
-        localStorage.removeItem("qb_end_time");
-        
-        const qIndex = localStorage.getItem("qb_qindex") || 0;
-        statusEl.className = "";
-        statusEl.textContent = `Question ${parseInt(qIndex, 10) + 1} (Read question, waiting for host to start timer...)`;
-        disableAllOptions();
-      } else if (payload.type === "TIMER_STARTED") {
-        isTimerActive = true;
-        isTimeUp = false;
-        targetEndTime = payload.endTime || (Date.now() + payload.timeMs);
-        
-        localStorage.setItem("qb_state_status", "TIMER_RUNNING");
-        localStorage.setItem("qb_end_time", targetEndTime);
-
-        enableAllOptions();
-
-        // Restore active selection highlight if player refreshed right as timer started
-        const savedChoice = localStorage.getItem("qb_selected_choice");
-        if (savedChoice !== null) {
-          selectedOptionIndex = parseInt(savedChoice, 10);
-          const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
-          if (btn) btn.classList.add("selected");
-        }
-
-        startPlayerTimerLoop();
-      } else if (payload.type === "TIME_UP") {
-        clearInterval(playerTimerLoop);
-        isTimeUp = true;
-        isTimerActive = false;
-        localStorage.setItem("qb_state_status", "TIME_UP");
-        disableAllOptions();
-        statusEl.textContent = "⏱️ Time's Up!";
-      } else if (payload.type === "REVEAL_ANSWER") {
-        clearInterval(playerTimerLoop);
-        localStorage.setItem("qb_state_status", "TIME_UP");
-        localStorage.setItem("qb_correct_answer", payload.correctAnswer);
-        revealCorrectAnswer(payload.correctAnswer);
-      } else if (payload.type === "LEADERBOARD_UPDATE") {
-        renderLeaderboard(payload.scores);
+        inputContainer.appendChild(input);
+        inputContainer.appendChild(submitBtn);
       }
     }
 
-    function renderOptions(options, startDisabled = true) {
-      const container = document.getElementById("options-container");
-      container.innerHTML = "";
+    function enableAnswering(q, durationSeconds) {
+      const optionBtns = inputContainer.querySelectorAll('.option-btn');
+      const textInput = document.getElementById('typed-answer');
+      const submitBtn = inputContainer.querySelector('.btn');
 
-      options.forEach((optText, index) => {
-        const btn = document.createElement("button");
-        btn.className = "btn-option";
-        btn.id = `opt-btn-${index}`;
-        btn.disabled = startDisabled;
-        btn.textContent = `${String.fromCharCode(65 + index)}. ${optText}`;
-        btn.onclick = () => submitAnswer(index);
-        container.appendChild(btn);
-      });
-    }
-
-    function submitAnswer(selectedIndex) {
-      if (!isTimerActive || isTimeUp) return;
-
-      selectedOptionIndex = selectedIndex;
-      localStorage.setItem("qb_selected_choice", selectedIndex);
-
-      const buttons = document.querySelectorAll(".btn-option");
-      buttons.forEach((btn, idx) => {
-        if (idx === selectedIndex) {
-          btn.classList.add("selected");
-        } else {
-          btn.classList.remove("selected");
-        }
-      });
-
-      conn.send({
-        type: "SUBMIT_ANSWER",
-        choiceIndex: selectedIndex
-      });
-
-      const statusEl = document.getElementById("status-msg");
-      statusEl.className = "";
-      statusEl.textContent = "Answer Selected! (You can change it before time runs out)";
-    }
-
-    function enableAllOptions() {
-      const buttons = document.querySelectorAll(".btn-option");
-      buttons.forEach(btn => btn.disabled = false);
-    }
-
-    function disableAllOptions() {
-      const buttons = document.querySelectorAll(".btn-option");
-      buttons.forEach(btn => btn.disabled = true);
-    }
-
-    function revealCorrectAnswer(correctIndex) {
-      disableAllOptions();
-      const statusEl = document.getElementById("status-msg");
-      const buttons = document.querySelectorAll(".btn-option");
-      
-      buttons.forEach((btn, idx) => {
-        btn.classList.remove("selected");
-        if (idx === correctIndex) {
-          btn.classList.add("correct");
-          btn.textContent += " ✅";
-        } else if (idx === selectedOptionIndex && selectedOptionIndex !== correctIndex) {
-          btn.classList.add("incorrect");
-          btn.textContent += " ❌";
-        }
-      });
-
-      if (selectedOptionIndex === correctIndex) {
-        statusEl.className = "status-correct";
-        statusEl.textContent = "🎉 Correct! Great job!";
-      } else if (selectedOptionIndex !== null) {
-        statusEl.className = "status-incorrect";
-        statusEl.textContent = "❌ Incorrect!";
-      } else {
-        statusEl.className = "status-incorrect";
-        statusEl.textContent = "⏱️ Time's Up! No answer selected.";
+      if (optionBtns.length > 0) {
+        optionBtns.forEach((btn, idx) => {
+          btn.disabled = false;
+          btn.onclick = () => {
+            optionBtns.forEach(b => b.style.border = '1px solid #cbd5e1');
+            btn.style.border = '2px solid #0066ff';
+            submitResponse(idx);
+          };
+        });
+      } else if (textInput && submitBtn) {
+        textInput.disabled = false;
+        textInput.placeholder = 'Type your answer here...';
+        textInput.focus();
+        submitBtn.disabled = false;
+        submitBtn.onclick = () => {
+          submitResponse(textInput.value.trim());
+          submitBtn.disabled = true;
+          textInput.disabled = true;
+        };
       }
     }
 
-    function renderLeaderboard(scores) {
-      const el = document.getElementById("player-leaderboard");
-      if (!scores || scores.length === 0) return;
-
-      el.innerHTML = scores.map((s, idx) => `
-        <div style="display:flex; justify-content:space-between; font-size: 0.9rem; margin-bottom: 4px;">
-          <span><strong>#${idx + 1} ${s.name}</strong> (${s.section})</span>
-          <span style="margin-left: auto;"><strong>${s.total} pts</strong></span>
-        </div>
-      `).join("");
+    function submitResponse(answer) {
+      const playerInfo = JSON.parse(localStorage.getItem('qb_player_info'));
+      const channel = new BroadcastChannel(`quiz_bee_${playerInfo.room}`);
+      channel.postMessage({
+        type: 'SUBMIT_ANSWER',
+        uuid: playerUuid,
+        answer: answer
+      });
     }
   </script>
 </body>
