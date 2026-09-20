@@ -5,7 +5,7 @@
 
 let peer = null;
 let roomCode = "";
-let connectedPlayers = {}; // peerId -> { name, section, conn, scores: { EASY:0, MODERATE:0, DIFFICULT:0 }, currentAnswer: null }
+let connectedPlayers = {}; // peerId -> { persistentId, name, section, conn, scores: { EASY:0, MODERATE:0, DIFFICULT:0 }, currentAnswer: null }
 let activeDataset = [];
 let currentQuestionIndex = 0;
 let currentQuestion = null;
@@ -29,14 +29,33 @@ function initHostRoom() {
     conn.on('open', () => {
       const playerName = conn.metadata?.name || "Anonymous";
       const playerSection = conn.metadata?.section || "N/A";
+      const persistentId = conn.metadata?.playerId || playerName;
 
+      // 1. SEARCH FOR EXISTING PLAYER TO RETAIN SCORES ACROSS REFRESHES
+      let existingScores = { EASY: 0, MODERATE: 0, DIFFICULT: 0 };
+      
+      const existingPeerKey = Object.keys(connectedPlayers).find(
+        key => connectedPlayers[key].persistentId === persistentId || 
+               (connectedPlayers[key].name === playerName && connectedPlayers[key].section === playerSection)
+      );
+
+      if (existingPeerKey) {
+        // Retain current accumulated scores
+        existingScores = connectedPlayers[existingPeerKey].scores;
+        // Purge old dead socket reference
+        delete connectedPlayers[existingPeerKey];
+      }
+
+      // 2. MAP NEW WEBRTC SOCKET TO EXISTING PLAYER PROFILE
       connectedPlayers[conn.peer] = {
+        persistentId: persistentId,
         name: playerName,
         section: playerSection,
         conn: conn,
-        scores: { EASY: 0, MODERATE: 0, DIFFICULT: 0 },
+        scores: existingScores,
         currentAnswer: null
       };
+
       updatePlayerListUI();
       broadcastLeaderboard();
     });
@@ -61,7 +80,7 @@ function syncStateToPlayer(peerId) {
   const player = connectedPlayers[peerId];
   if (!player || !player.conn) return;
 
-  // Send current question payload
+  // Send current live question to re-sync player screen
   if (currentQuestion) {
     player.conn.send({
       type: "NEW_QUESTION",
@@ -77,7 +96,7 @@ function syncStateToPlayer(peerId) {
     }
   }
 
-  // Resend leaderboard
+  // Resend updated leaderboard
   broadcastLeaderboard();
 }
 
