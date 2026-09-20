@@ -105,7 +105,6 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
-    // Persistent Unique Player ID
     let playerId = localStorage.getItem("qb_pid");
     if (!playerId) {
       playerId = 'pid_' + Math.random().toString(36).substring(2, 11);
@@ -124,7 +123,6 @@
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
 
-      // Handle scanning a different room QR code
       if (roomFromUrl && roomFromUrl !== savedRoom) {
         clearSessionState();
         const roomInput = document.getElementById("roomCodeInput");
@@ -141,7 +139,6 @@
         if (roomFromUrl) roomInput.disabled = true;
       }
 
-      // Reconnect immediately if active session in the same room
       if (isJoined && savedName && savedSection && savedRoom) {
         document.getElementById("join-screen").style.display = "none";
         document.getElementById("game-screen").style.display = "block";
@@ -159,8 +156,9 @@
       localStorage.removeItem("qb_category");
       localStorage.removeItem("qb_options");
       localStorage.removeItem("qb_qindex");
-      localStorage.removeItem("qb_timer_active");
+      localStorage.removeItem("qb_state_status"); // 'WAITING_TIMER' | 'TIMER_RUNNING' | 'TIME_UP'
       localStorage.removeItem("qb_selected_choice");
+      localStorage.removeItem("qb_correct_answer");
       if (conn) {
         try { conn.close(); } catch(e) {}
         conn = null;
@@ -172,8 +170,9 @@
       const cachedCat = localStorage.getItem("qb_category") || "EASY";
       const cachedOpts = JSON.parse(localStorage.getItem("qb_options") || "[]");
       const cachedQIndex = localStorage.getItem("qb_qindex");
-      const timerActive = localStorage.getItem("qb_timer_active") === "true";
+      const stateStatus = localStorage.getItem("qb_state_status") || "WAITING_TIMER";
       const savedChoice = localStorage.getItem("qb_selected_choice");
+      const savedCorrectAns = localStorage.getItem("qb_correct_answer");
 
       if (cachedQ && cachedOpts.length > 0) {
         document.getElementById("question-text").textContent = cachedQ;
@@ -181,19 +180,35 @@
         badge.textContent = cachedCat;
         badge.className = `badge badge-${cachedCat}`;
 
-        isTimerActive = timerActive;
-        renderOptions(cachedOpts, !timerActive);
-
-        if (savedChoice !== null) {
-          selectedOptionIndex = parseInt(savedChoice, 10);
-          const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
-          if (btn) btn.classList.add("selected");
-        }
-
         const statusEl = document.getElementById("status-msg");
-        if (timerActive) {
+
+        if (stateStatus === "TIME_UP") {
+          isTimeUp = true;
+          isTimerActive = false;
+          if (savedChoice !== null) selectedOptionIndex = parseInt(savedChoice, 10);
+          
+          renderOptions(cachedOpts, true);
+          if (savedCorrectAns !== null) {
+            revealCorrectAnswer(parseInt(savedCorrectAns, 10));
+          } else {
+            statusEl.textContent = "⏱️ Time's Up!";
+            disableAllOptions();
+          }
+        } else if (stateStatus === "TIMER_RUNNING") {
+          isTimerActive = true;
+          isTimeUp = false;
+          renderOptions(cachedOpts, false);
+          
+          if (savedChoice !== null) {
+            selectedOptionIndex = parseInt(savedChoice, 10);
+            const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
+            if (btn) btn.classList.add("selected");
+          }
           statusEl.textContent = "⏱️ Timer Active! Select your answer.";
-        } else {
+        } else { // WAITING_TIMER
+          isTimerActive = false;
+          isTimeUp = false;
+          renderOptions(cachedOpts, true);
           statusEl.textContent = `Question ${parseInt(cachedQIndex || 0, 10) + 1} (Read question, waiting for host to start timer...)`;
         }
       }
@@ -302,8 +317,9 @@
         localStorage.setItem("qb_category", payload.category);
         localStorage.setItem("qb_options", JSON.stringify(payload.options));
         localStorage.setItem("qb_qindex", payload.questionIndex);
-        localStorage.setItem("qb_timer_active", "false");
+        localStorage.setItem("qb_state_status", "WAITING_TIMER");
         localStorage.removeItem("qb_selected_choice");
+        localStorage.removeItem("qb_correct_answer");
 
         statusEl.className = "";
         statusEl.textContent = `Question ${payload.questionIndex + 1} (Read question, waiting for host to start timer...)`;
@@ -317,7 +333,7 @@
       } else if (payload.type === "TIMER_STARTED") {
         isTimerActive = true;
         isTimeUp = false;
-        localStorage.setItem("qb_timer_active", "true");
+        localStorage.setItem("qb_state_status", "TIMER_RUNNING");
         enableAllOptions();
         statusEl.className = "";
         statusEl.textContent = "⏱️ Timer Started! Select your answer.";
@@ -329,9 +345,11 @@
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
         isTimerActive = false;
-        localStorage.setItem("qb_timer_active", "false");
+        localStorage.setItem("qb_state_status", "TIME_UP");
         disableAllOptions();
       } else if (payload.type === "REVEAL_ANSWER") {
+        localStorage.setItem("qb_state_status", "TIME_UP");
+        localStorage.setItem("qb_correct_answer", payload.correctAnswer);
         revealCorrectAnswer(payload.correctAnswer);
       } else if (payload.type === "LEADERBOARD_UPDATE") {
         renderLeaderboard(payload.scores);
