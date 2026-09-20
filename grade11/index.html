@@ -9,7 +9,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
-    .layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
+    .layout-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
     .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
     h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
     .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.8rem; margin-bottom: 15px; color: #0066ff; letter-spacing: 2px; }
@@ -39,27 +39,29 @@
 <body>
 
   <div class="layout-grid">
+    <!-- Left Sidebar: Room Code & Leaderboard -->
     <div class="card">
       <h2 style="font-size:1.1rem; text-align:center; margin-bottom:10px;">ROOM CODE</h2>
       <div id="room-code-display" class="room-box">----</div>
       <div id="qrcode"></div>
-      <p style="font-size:0.75rem; text-align:center; color:#64748b;">Scan with phone camera or visit <b>player.html</b> to join.</p>
+      <p style="font-size:0.75rem; text-align:center; color:#64748b; margin-bottom:15px;">Scan to join via <b>player.html</b></p>
       
-      <h3 style="font-size: 1rem; margin-top: 20px; border-bottom:1px solid #eee; padding-bottom:5px;">Connected Players</h3>
+      <h3 style="font-size: 1rem; border-bottom:2px solid #0066ff; padding-bottom:5px; margin-top:10px;">🏆 Leaderboard</h3>
       <table class="leaderboard-table">
         <thead>
-          <tr>
-            <th>Name</th>
+          <tr style="color:#64748b;">
+            <th>Player</th>
             <th>Section</th>
             <th>Score</th>
           </tr>
         </thead>
         <tbody id="leaderboard-body">
-          <tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>
+          <tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:15px 0;">Waiting for players...</td></tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Right Area: Controller Controls -->
     <div class="card">
       <h1>Grade 11 Science Quiz Bee Controller</h1>
       
@@ -73,9 +75,9 @@
       </div>
 
       <div class="counters">
-        <span>🟢 Easy Remaining: <span id="easy-count">0</span></span>
-        <span>🟡 Moderate Remaining: <span id="mod-count">0</span></span>
-        <span>🔴 Difficult Remaining: <span id="diff-count">0</span></span>
+        <span>🟢 Easy: <span id="easy-count">0</span></span>
+        <span>🟡 Moderate: <span id="mod-count">0</span></span>
+        <span>🔴 Difficult: <span id="diff-count">0</span></span>
       </div>
 
       <div class="question-card">
@@ -164,12 +166,12 @@
       leaderboardBody.innerHTML = '';
       const list = Object.values(connectedPlayers);
       if (list.length === 0) {
-        leaderboardBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>';
+        leaderboardBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:15px 0;">Waiting for players...</td></tr>';
         return;
       }
       list.sort((a, b) => b.score - a.score).forEach(p => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td>${p.score} pts</td>`;
+        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td><b style="color:#0066ff;">${p.score} pts</b></td>`;
         leaderboardBody.appendChild(tr);
       });
     }
@@ -238,7 +240,7 @@
       broadcastPayload({
         type: 'TIME_UP',
         correctAnswer: q.answer,
-        type: q.type,
+        questionType: q.type,
         leaderboard: connectedPlayers
       });
     }
