@@ -1,19 +1,17 @@
 /**
  * Core Host Engine (host-app.js)
- * Shared WebRTC Controller, Category Tracker & Dynamic QR Generator
+ * Shared WebRTC Controller, Dynamic Set Resolver, Leaderboard Broadcaster & CSV Exporter
  */
 
 let peer = null;
 let roomCode = "";
-let connectedPlayers = {}; // id -> { name, conn, scores: { EASY:0, MODERATE:0, DIFFICULT:0 } }
+let connectedPlayers = {}; // peerId -> { name, section, conn, scores: { EASY:0, MODERATE:0, DIFFICULT:0 } }
+let activeDataset = [];
 let currentQuestionIndex = 0;
 let currentQuestion = null;
 let timerInterval = null;
 let remainingTime = 0;
 
-/**
- * Initialize Host Session
- */
 function initHostRoom() {
   roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const peerId = `quizbee-room-${roomCode}`;
@@ -29,13 +27,17 @@ function initHostRoom() {
   peer.on('connection', (conn) => {
     conn.on('open', () => {
       const playerName = conn.metadata?.name || "Anonymous";
+      const playerSection = conn.metadata?.section || "N/A";
+
       connectedPlayers[conn.peer] = {
         name: playerName,
+        section: playerSection,
         conn: conn,
         scores: { EASY: 0, MODERATE: 0, DIFFICULT: 0 },
         currentAnswer: null
       };
       updatePlayerListUI();
+      broadcastLeaderboard();
     });
 
     conn.on('data', (payload) => {
@@ -47,13 +49,20 @@ function initHostRoom() {
     conn.on('close', () => {
       delete connectedPlayers[conn.peer];
       updatePlayerListUI();
+      broadcastLeaderboard();
     });
   });
 }
 
-/**
- * Dynamic Root URL Resolver & QR Rendering
- */
+function changeQuestionSet(setKey) {
+  if (typeof QUIZ_DATASETS !== "undefined" && QUIZ_DATASETS[setKey]) {
+    activeDataset = QUIZ_DATASETS[setKey];
+  } else if (typeof QUIZ_DATASET !== "undefined") {
+    activeDataset = Array.isArray(QUIZ_DATASET) ? QUIZ_DATASET : (QUIZ_DATASET[setKey] || []);
+  }
+  currentQuestionIndex = 0;
+}
+
 function renderHostQRCode(code) {
   const qrContainer = document.getElementById("qrcode-container");
   if (!qrContainer) return;
@@ -63,7 +72,6 @@ function renderHostQRCode(code) {
   const origin = window.location.origin;
   const pathSegments = window.location.pathname.split('/').filter(Boolean);
 
-  // Strip filenames and grade subfolders to cleanly resolve root player.html
   if (pathSegments.length > 0 && pathSegments[pathSegments.length - 1].endsWith('.html')) {
     pathSegments.pop();
   }
@@ -86,16 +94,12 @@ function renderHostQRCode(code) {
   }
 }
 
-/**
- * Question Payload Dispatcher
- */
 function sendQuestionToPlayers(questionIndex) {
-  if (!QUIZ_DATASET || !QUIZ_DATASET[questionIndex]) return;
+  if (!activeDataset || !activeDataset[questionIndex]) return;
 
   currentQuestionIndex = questionIndex;
-  currentQuestion = QUIZ_DATASET[questionIndex];
-  
-  // Reset player answers for this item
+  currentQuestion = activeDataset[questionIndex];
+
   Object.keys(connectedPlayers).forEach(id => {
     connectedPlayers[id].currentAnswer = null;
   });
@@ -103,27 +107,27 @@ function sendQuestionToPlayers(questionIndex) {
   const payload = {
     type: "NEW_QUESTION",
     questionIndex: currentQuestionIndex,
+    question: currentQuestion.question,
     category: currentQuestion.category || "EASY",
     options: currentQuestion.options
   };
 
   broadcastPayload(payload);
-  updateHostQuestionUI();
+
+  if (typeof updateHostQuestionUI === "function") {
+    updateHostQuestionUI();
+  }
 }
 
-/**
- * Manual Timer Controls
- */
 function startManualTimer() {
   clearInterval(timerInterval);
   remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
 
   timerInterval = setInterval(() => {
     remainingTime--;
-    
-    // Broadcast live relative clock sync
+
     broadcastPayload({ type: "TIMER_SYNC", timeRemaining: remainingTime });
-    
+
     const timerDisplay = document.getElementById("timer-display");
     if (timerDisplay) timerDisplay.textContent = `${remainingTime}s`;
 
@@ -136,12 +140,14 @@ function startManualTimer() {
 }
 
 function handlePlayerAnswer(peerId, choiceIndex) {
-  if (connectedPlayers[peerId] && remainingTime > 0) {
+  if (connectedPlayers[peerId]) {
     connectedPlayers[peerId].currentAnswer = choiceIndex;
   }
 }
 
 function gradeCurrentQuestion() {
+  if (!currentQuestion) return;
+
   const correctChoice = currentQuestion.correctAnswer;
   const cat = currentQuestion.category || "EASY";
 
@@ -152,7 +158,21 @@ function gradeCurrentQuestion() {
     }
   });
 
-  updateScoreboardUI();
+  broadcastLeaderboard();
+}
+
+function broadcastLeaderboard() {
+  const formattedScores = Object.values(connectedPlayers).map(p => {
+    const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
+    return { name: p.name, section: p.section, total: total, scores: p.scores };
+  }).sort((a, b) => b.total - a.total);
+
+  updateScoreboardUI(formattedScores);
+
+  broadcastPayload({
+    type: "LEADERBOARD_UPDATE",
+    scores: formattedScores
+  });
 }
 
 function broadcastPayload(payload) {
@@ -165,26 +185,30 @@ function updatePlayerListUI() {
   const listEl = document.getElementById("player-list");
   if (!listEl) return;
   listEl.innerHTML = Object.values(connectedPlayers)
-    .map(p => `<li>${p.name}</li>`).join("");
+    .map(p => `<li><strong>${p.name}</strong> (${p.section})</li>`).join("");
 }
 
-function updateScoreboardUI() {
+function updateScoreboardUI(scores) {
   const boardEl = document.getElementById("scoreboard-display");
   if (!boardEl) return;
-  boardEl.innerHTML = Object.values(connectedPlayers)
-    .map(p => `<p><strong>${p.name}</strong> - Easy: ${p.scores.EASY} | Mod: ${p.scores.MODERATE} | Diff: ${p.scores.DIFFICULT}</p>`)
+  
+  const scoreData = scores || Object.values(connectedPlayers).map(p => ({
+    name: p.name, section: p.section,
+    total: (p.scores.EASY||0) + (p.scores.MODERATE||0) + (p.scores.DIFFICULT||0),
+    scores: p.scores
+  }));
+
+  boardEl.innerHTML = scoreData
+    .map(p => `<p><strong>${p.name}</strong> (${p.section}) — Easy: ${p.scores.EASY} | Mod: ${p.scores.MODERATE} | Diff: ${p.scores.DIFFICULT} | <strong>Total: ${p.total}</strong></p>`)
     .join("");
 }
 
-/**
- * CSV Score Exporter
- */
 function exportScoresCSV() {
-  let csvContent = "data:text/csv;charset=utf-8,Player Name,Easy,Moderate,Difficult,Total Score\n";
+  let csvContent = "data:text/csv;charset=utf-8,Player Name,Section,Easy,Moderate,Difficult,Total Score\n";
 
   Object.values(connectedPlayers).forEach(p => {
     const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
-    csvContent += `"${p.name}",${p.scores.EASY},${p.scores.MODERATE},${p.scores.DIFFICULT},${total}\n`;
+    csvContent += `"${p.name}","${p.section}",${p.scores.EASY},${p.scores.MODERATE},${p.scores.DIFFICULT},${total}\n`;
   });
 
   const encodedUri = encodeURI(csvContent);
