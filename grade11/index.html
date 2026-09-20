@@ -27,6 +27,13 @@
     .badge-MODERATE { background-color: #ffc107; color: #212529; }
     .badge-DIFFICULT { background-color: #dc3545; }
     #item-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    
+    /* Category Progress Box */
+    .category-progress-box {
+      display: flex; gap: 15px; margin: 12px 0 18px 0; background: #eef2f5; padding: 12px 16px; border-radius: 8px; flex-wrap: wrap;
+    }
+    .progress-item { font-size: 0.95rem; font-weight: 600; color: #333; }
+    .count-number { color: #007bff; font-weight: bold; }
   </style>
 </head>
 <body onload="startHostController()">
@@ -51,13 +58,20 @@
     <!-- HOST CONTROLLER CARD -->
     <div class="panel">
       <!-- SET SELECTOR DROPDOWN -->
-      <div style="margin-bottom: 15px;">
+      <div style="margin-bottom: 10px;">
         <label for="setSelect"><strong>Active Question Set:</strong></label><br/>
         <select id="setSelect" onchange="selectSet(this.value)" style="margin-top: 5px;">
           <option value="SET_A">Question Set A</option>
           <option value="SET_B">Question Set B</option>
           <option value="SET_C">Question Set C</option>
         </select>
+      </div>
+
+      <!-- REMAINING QUESTIONS COUNTER PER CATEGORY -->
+      <div class="category-progress-box">
+        <div class="progress-item">🟢 Easy Remaining: <span id="easy-left" class="count-number">0</span></div>
+        <div class="progress-item">🟡 Moderate Remaining: <span id="mod-left" class="count-number">0</span></div>
+        <div class="progress-item">🔴 Difficult Remaining: <span id="diff-left" class="count-number">0</span></div>
       </div>
 
       <!-- ACTIVE QUESTION PREVIEW ON HOST SCREEN -->
@@ -91,6 +105,8 @@
   </div>
 
   <script>
+    let dispatchedQuestionIds = new Set();
+
     function startHostController() {
       initHostRoom();
       selectSet('SET_A');
@@ -103,8 +119,10 @@
         activeDataset = Array.isArray(QUIZ_DATASET) ? QUIZ_DATASET : (QUIZ_DATASET[setKey] || []);
       }
 
+      dispatchedQuestionIds.clear();
       changeQuestionSet(setKey);
       renderItemButtons();
+      updateCategoryCounts();
 
       if (activeDataset && activeDataset.length > 0) {
         previewQuestion(0);
@@ -127,10 +145,34 @@
         btn.textContent = `Q${idx + 1} (${q.category ? q.category.substring(0, 1) : 'E'})`;
         btn.title = `Category: ${q.category || 'EASY'}`;
         btn.onclick = () => {
+          dispatchedQuestionIds.add(q.id || idx);
           sendQuestionToPlayers(idx);
+          updateCategoryCounts();
         };
         container.appendChild(btn);
       });
+    }
+
+    function updateCategoryCounts() {
+      if (!activeDataset) return;
+
+      let easyLeft = 0;
+      let modLeft = 0;
+      let diffLeft = 0;
+
+      activeDataset.forEach((q, idx) => {
+        const qId = q.id || idx;
+        if (!dispatchedQuestionIds.has(qId)) {
+          const cat = (q.category || "EASY").toUpperCase();
+          if (cat === "EASY") easyLeft++;
+          else if (cat === "MODERATE") modLeft++;
+          else if (cat === "DIFFICULT") diffLeft++;
+        }
+      });
+
+      document.getElementById("easy-left").textContent = easyLeft;
+      document.getElementById("mod-left").textContent = modLeft;
+      document.getElementById("diff-left").textContent = diffLeft;
     }
 
     function previewQuestion(idx) {
