@@ -1,8 +1,8 @@
 /**
- * Quiz Bee Question Bank & Helper Functions
+ * Grade 11 Science Quiz Bee Question Bank
  */
 
-export const rawQuestionBank = {
+const rawQuestionBank = {
   1: [
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which quantity describes rotational motion rather than translational motion?", options: ["Linear velocity", "Angular velocity", "Displacement", "Acceleration"], answer: 1 },
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which condition poses an electrical hazard caused by connecting too many appliances to one outlet?", options: ["Damaged insulation", "Faulty wiring", "Overloading", "Electrocution"], answer: 2 },
@@ -26,17 +26,11 @@ export const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Which regulatory agency sets environmental disposal standards for chemical waste in the Philippines?", options: ["DTI", "FDA", "DENR", "DOST"], answer: 2 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Laser light differs from ordinary light bulb radiation because laser light is what?", options: ["Polychromatic", "Coherent and monochromatic", "Diffuse", "Incoherent"], answer: 1 },
     
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What optical phenomenon allows light signals to travel inside fiber optic cables without escaping?", answer: "total internal reflection" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What detergent chemical additive causes algal blooms and oxygen depletion in rivers?", answer: "phosphate" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What rotational force causes an object to turn or rotate around a pivot or fulcrum?", answer: "torque" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What upward force is exerted by a fluid on an object placed in it according to Archimedes' principle?", answer: "buoyant force" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What hollow hull design allows massive metal ships to float by increasing displaced water volume?", answer: "density" },
-
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "Which simple machine wrapped around a cylinder converts rotational motion to linear force?", options: ["Wedge", "Screw", "Lever", "Pulley"], answer: 1 },
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What heating process eliminates pathogens in dairy products without boiling the liquid?", answer: "pasteurization" },
-    { round: "Clincher Round", points: 1, timer: 10, type: "mc", question: "What circuit protection mechanism melts to interrupt excessive current flow?", options: ["Transformer", "Fuse", "Capacitor", "Resistor"], answer: 1 },
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What primary surfactant compound ingredient in soap molecules lifts nonpolar oil?", answer: "fatty acid" },
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "Which wave interaction in noise-canceling headphones neutralizes incoming sound waves?", options: ["Constructive interference", "Destructive interference", "Refraction", "Diffraction"], answer: 1 }
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What optical phenomenon allows light signals to travel inside fiber optic cables without escaping?", options: ["Refraction", "Total Internal Reflection", "Diffraction", "Dispersion"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What detergent chemical additive causes algal blooms and oxygen depletion in rivers?", options: ["Nitrate", "Phosphate", "Sulfate", "Carbonate"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What rotational force causes an object to turn or rotate around a pivot or fulcrum?", options: ["Work", "Torque", "Impulse", "Power"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What upward force is exerted by a fluid on an object placed in it according to Archimedes' principle?", options: ["Tension", "Buoyant force", "Friction", "Normal force"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What hollow hull design principle allows massive metal ships to float by altering displaced water volume?", options: ["Viscosity", "Density", "Pressure", "Surface Tension"], answer: 1 }
   ],
   2: [
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which motion occurs when an object moves along a straight path without rotation?", options: ["Translational motion", "Rotational motion", "Circular motion", "Vibrational motion"], answer: 0 },
@@ -61,17 +55,11 @@ export const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "An object submerged in water experiences an upward buoyant force of 50 N. What mass of water was displaced in kg? (g = 9.8 m/s²)", options: ["2.5 kg", "5.1 kg", "10.0 kg", "50.0 kg"], answer: 1 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Holograms differ from standard 3D photographs because holographic recording captures what wave characteristic?", options: ["Amplitude only", "Phase information and interference patterns", "Speed variations", "Wavelength reduction"], answer: 1 },
     
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What simple machine component acts as a fixed pivot point about which a lever rotates?", answer: "fulcrum" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What class of hazardous metals like lead and cadmium leach into groundwater from improper battery disposal?", answer: "heavy metals" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What safety device automatically breaks an electric circuit when current amperage exceeds safe limits?", answer: "circuit breaker" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "Which medical innovation uses focused, coherent light waves for precise tissue incisions?", answer: "laser" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What fluid property describes a liquid's resistance to flow and internal friction?", answer: "viscosity" },
-
-    { round: "Clincher Round", points: 1, timer: 10, type: "mc", question: "Which unit measures electric current flow through home wiring?", options: ["Volts", "Amperes", "Ohms", "Watts"], answer: 1 },
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What fundamental property of matter resists changes in its state of linear motion?", answer: "inertia" },
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "Which regulatory body certifies drug efficacy and food hygiene safety in the Philippines?", options: ["DENR", "FDA", "DTI", "DOST"], answer: 1 },
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What light wave frequency band is used by remote controls and thermal sensors?", answer: "infrared" },
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "Which law explains how pressure changes applied to an enclosed fluid transmit equally in all directions?", options: ["Archimedes' Principle", "Pascal's Principle", "Boyle's Law", "Hooke's Law"], answer: 1 }
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What simple machine component acts as a fixed pivot point about which a lever rotates?", options: ["Load", "Fulcrum", "Effort", "Arm"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What class of hazardous metals like lead and cadmium leach into groundwater from improper battery disposal?", options: ["Noble metals", "Heavy metals", "Alkali metals", "Metalloids"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What safety device automatically breaks an electric circuit when current amperage exceeds safe limits?", options: ["Resistor", "Circuit breaker", "Transformer", "Capacitor"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "Which medical innovation uses focused, coherent light waves for precise tissue incisions?", options: ["X-Ray", "Laser", "Ultrasound", "CT Scan"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What fluid property describes a liquid's resistance to flow and internal friction?", options: ["Density", "Viscosity", "Buoyancy", "Pressure"], answer: 1 }
   ],
   3: [
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which unit measures angular displacement in rotational kinematics?", options: ["Meters", "Radians", "Newton-meters", "Watts"], answer: 1 },
@@ -96,29 +84,15 @@ export const rawQuestionBank = {
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Converting linear motion into angular rotation depends on applying force at what distance from an axis?", options: ["At zero distance", "At a perpendicular distance (radius) to create torque", "Parallel to the bar", "At the exact center of mass"], answer: 1 },
     { round: "Moderate Round", points: 3, timer: 15, type: "mc", question: "Why do modern energy-efficient air conditioners with inverter technology consume less electricity?", options: ["They run at maximum speed constantly", "They adjust compressor motor speed dynamically instead of cycling fully ON/OFF", "They bypass home circuit breakers", "They utilize hydraulic pumps"], answer: 1 },
     
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What additive in personal care soaps acts as a chelating agent to soften hard water?", answer: "edta" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What wave interaction causes noise-canceling headphones to reduce background sound?", answer: "destructive interference" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What physical property of a body resists changes in its rotational state of motion?", answer: "rotational inertia" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What heating process eliminates disease-causing pathogens in milk and fruit juices?", answer: "pasteurization" },
-    { round: "Difficult Round", points: 5, timer: 30, type: "text", question: "What simple machine consists of a wheel with a groove holding a rope or cable?", answer: "pulley" },
-
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What standard warning pictograms on cleaning products communicate toxicity and flammability?", answer: "ghs" },
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "An electric fan blade moving around a center spindle represents which motion?", options: ["Translational motion", "Rotational motion", "Linear motion", "Vibrational motion"], answer: 1 },
-    { round: "Clincher Round", points: 1, timer: 10, type: "mc", question: "What chemical element active compound in liquid bleach disinfects surfaces?", options: ["Chlorine", "Fluoride", "Iodine", "Ammonia"], answer: 0 },
-    { round: "Clincher Round", points: 5, timer: 30, type: "text", question: "What optical wave property causes light bending when entering water from air?", answer: "refraction" },
-    { round: "Clincher Round", points: 3, timer: 15, type: "mc", question: "What happens when two simple machines operate together in a single system?", options: ["Forms a compound machine", "Generates free energy", "Eliminates friction", "Reduces mechanical power"], answer: 0 }
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What additive in personal care soaps acts as a chelating agent to soften hard water?", options: ["Sodium Chloride", "EDTA", "Ethanol", "Glycerin"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What wave interaction causes noise-canceling headphones to reduce background sound?", options: ["Constructive Interference", "Destructive Interference", "Diffraction", "Refraction"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What physical property of a body resists changes in its rotational state of motion?", options: ["Linear Momentum", "Rotational Inertia", "Torque", "Velocity"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What heating process eliminates disease-causing pathogens in milk and fruit juices?", options: ["Sterilization", "Pasteurization", "Fermentation", "Distillation"], answer: 1 },
+    { round: "Difficult Round", points: 5, timer: 30, type: "mc", question: "What simple machine consists of a wheel with a groove holding a rope or cable?", options: ["Lever", "Pulley", "Wedge", "Screw"], answer: 1 }
   ]
 };
 
-// Also map string keys 'A', 'B', 'C' to 1, 2, 3 for controller string selects
-rawQuestionBank["A"] = rawQuestionBank[1];
-rawQuestionBank["B"] = rawQuestionBank[2];
-rawQuestionBank["C"] = rawQuestionBank[3];
-rawQuestionBank["Question Set A"] = rawQuestionBank[1];
-rawQuestionBank["Question Set B"] = rawQuestionBank[2];
-rawQuestionBank["Question Set C"] = rawQuestionBank[3];
-
-export function shuffleArray(array) {
+function shuffleArray(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -127,10 +101,31 @@ export function shuffleArray(array) {
   return arr;
 }
 
-export function prepareShuffledSet(rawSet) {
+function prepareShuffledSet(rawSet) {
   const easy = shuffleArray(rawSet.filter(q => q.round === "Easy Round"));
   const moderate = shuffleArray(rawSet.filter(q => q.round === "Moderate Round"));
   const difficult = shuffleArray(rawSet.filter(q => q.round === "Difficult Round"));
-  const clincher = shuffleArray(rawSet.filter(q => q.round === "Clincher Round"));
-  return [...easy, ...moderate, ...difficult, ...clincher];
+  
+  return [...easy, ...moderate, ...difficult].map((item, index) => {
+    // Fallback timers if timer property is absent
+    let defaultTimer = 15;
+    if (item.round === "Easy Round") defaultTimer = 10;
+    if (item.round === "Difficult Round") defaultTimer = 30;
+
+    return {
+      id: `q_${index + 1}`,
+      category: item.round.split(' ')[0].toUpperCase(),
+      question: item.question,
+      options: item.options || [],
+      correctAnswer: item.answer !== undefined ? item.answer : 0,
+      timeLimit: item.timer || defaultTimer
+    };
+  });
 }
+
+// Global Export mapped for host-app.js
+const QUIZ_DATASETS = {
+  "SET_A": prepareShuffledSet(rawQuestionBank[1]),
+  "SET_B": prepareShuffledSet(rawQuestionBank[2]),
+  "SET_C": prepareShuffledSet(rawQuestionBank[3])
+};
