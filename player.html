@@ -37,10 +37,13 @@
       border-radius: 8px; font-weight: 500; transition: all 0.2s;
     }
     .btn-option.selected { background-color: #007bff; color: #fff; border-color: #0056b3; }
-    .btn-option.correct { background-color: #28a745 !important; color: #fff !important; border-color: #1e7e34 !important; }
-    .btn-option.incorrect { background-color: #dc3545 !important; color: #fff !important; border-color: #bd2130 !important; }
-    .btn-option:disabled { cursor: not-allowed; opacity: 0.85; }
+    .btn-option.correct { background-color: #28a745 !important; color: #fff !important; border-color: #1e7e34 !important; font-weight: bold; }
+    .btn-option.incorrect { background-color: #dc3545 !important; color: #fff !important; border-color: #bd2130 !important; font-weight: bold; }
+    .btn-option:disabled { cursor: not-allowed; opacity: 0.9; }
     
+    #status-msg.status-correct { color: #28a745; font-size: 1.3rem; font-weight: bold; }
+    #status-msg.status-incorrect { color: #dc3545; font-size: 1.3rem; font-weight: bold; }
+
     #reader-modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.85); z-index: 1000;
@@ -118,7 +121,6 @@
         roomInput.value = savedRoom.trim().toUpperCase();
         if (roomFromUrl) roomInput.disabled = true;
 
-        // Auto-reconnect if all saved data is present
         if (savedName && savedSection && savedRoom) {
           connectToHost();
         }
@@ -160,7 +162,6 @@
 
       if (!name || !code) return alert("Please enter your name and room code.");
 
-      // Save credentials for auto-reconnect on refresh
       localStorage.setItem("qb_name", name);
       localStorage.setItem("qb_section", section);
       localStorage.setItem("qb_room", code);
@@ -175,6 +176,7 @@
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
+          document.getElementById("status-msg").className = "";
           document.getElementById("status-msg").textContent = "Connected! Waiting for host to send question...";
         });
 
@@ -194,10 +196,13 @@
     }
 
     function handleIncomingPayload(payload) {
+      const statusEl = document.getElementById("status-msg");
+
       if (payload.type === "NEW_QUESTION") {
         isTimeUp = false;
         selectedOptionIndex = null;
-        document.getElementById("status-msg").textContent = `Question ${payload.questionIndex + 1}`;
+        statusEl.className = "";
+        statusEl.textContent = `Question ${payload.questionIndex + 1}`;
         document.getElementById("question-text").textContent = payload.question;
         
         const badge = document.getElementById("category-badge");
@@ -207,11 +212,11 @@
         renderOptions(payload.options);
       } else if (payload.type === "TIMER_SYNC") {
         if (!isTimeUp) {
-          document.getElementById("status-msg").textContent = `⏱️ Time Remaining: ${payload.timeRemaining}s`;
+          statusEl.className = "";
+          statusEl.textContent = `⏱️ Time Remaining: ${payload.timeRemaining}s`;
         }
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
-        document.getElementById("status-msg").textContent = "⏱️ Time's Up!";
         disableAllOptions();
       } else if (payload.type === "REVEAL_ANSWER") {
         revealCorrectAnswer(payload.correctAnswer);
@@ -239,7 +244,6 @@
 
       selectedOptionIndex = selectedIndex;
 
-      // Highlight selected option, clear others (allows changing answer freely while time remains)
       const buttons = document.querySelectorAll(".btn-option");
       buttons.forEach((btn, idx) => {
         if (idx === selectedIndex) {
@@ -249,13 +253,14 @@
         }
       });
 
-      // Transmit update to host
       conn.send({
         type: "SUBMIT_ANSWER",
         choiceIndex: selectedIndex
       });
 
-      document.getElementById("status-msg").textContent = "Answer Selected! (You can change it before time runs out)";
+      const statusEl = document.getElementById("status-msg");
+      statusEl.className = "";
+      statusEl.textContent = "Answer Selected! (You can change it before time runs out)";
     }
 
     function disableAllOptions() {
@@ -265,16 +270,31 @@
 
     function revealCorrectAnswer(correctIndex) {
       disableAllOptions();
+      const statusEl = document.getElementById("status-msg");
       const buttons = document.querySelectorAll(".btn-option");
       
       buttons.forEach((btn, idx) => {
         btn.classList.remove("selected");
         if (idx === correctIndex) {
           btn.classList.add("correct");
+          btn.textContent += " ✅";
         } else if (idx === selectedOptionIndex && selectedOptionIndex !== correctIndex) {
           btn.classList.add("incorrect");
+          btn.textContent += " ❌";
         }
       });
+
+      // Display explicit status message to user
+      if (selectedOptionIndex === correctIndex) {
+        statusEl.className = "status-correct";
+        statusEl.textContent = "🎉 Correct! Great job!";
+      } else if (selectedOptionIndex !== null) {
+        statusEl.className = "status-incorrect";
+        statusEl.textContent = "❌ Incorrect!";
+      } else {
+        statusEl.className = "status-incorrect";
+        statusEl.textContent = "⏱️ Time's Up! No answer selected.";
+      }
     }
 
     function renderLeaderboard(scores) {
