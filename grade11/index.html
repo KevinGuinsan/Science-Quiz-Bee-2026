@@ -11,9 +11,9 @@
     .layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
     .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
     h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
-    .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.5rem; margin-bottom: 15px; color: #0066ff; }
+    .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.8rem; margin-bottom: 15px; color: #0066ff; letter-spacing: 2px; }
     #qrcode { display: flex; justify-content: center; margin-bottom: 15px; }
-    .timer-display { font-size: 1.8rem; font-weight: bold; color: #e67e22; margin: 15px 0; font-family: monospace; display: inline-block; margin-left: 15px; }
+    .timer-display { font-size: 1.8rem; font-weight: bold; color: #e67e22; font-family: monospace; }
     .badge { background-color: #27ae60; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; float: right; }
     .badge.difficult { background-color: #e74c3c; }
     .badge.moderate { background-color: #f39c12; }
@@ -23,12 +23,12 @@
     .options-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
     .option-item { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 0.95rem; }
     .identification-input { width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f1f5f9; color: #64748b; }
-    .controls { display: flex; gap: 10px; align-items: center; margin-top: 15px; }
+    .controls { display: flex; gap: 15px; align-items: center; margin-top: 15px; }
     .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s ease; }
     .btn-timer { background: #f39c12; color: white; }
     .btn-timer:hover { background: #d35400; }
-    .btn-nav { background: #0066ff; color: white; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; }
-    .btn-nav.active { background: #0044cc; ring: 2px solid #002288; }
+    .btn-nav { background: #0066ff; color: white; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; border: none; cursor: pointer; }
+    .btn-nav.active { background: #0044cc; box-shadow: 0 0 0 2px #002288; }
     .nav-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 15px; }
     .counters { background: #eef2f5; padding: 10px 15px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; display: flex; gap: 15px; }
     .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -47,8 +47,15 @@
       
       <h3 style="font-size: 1rem; margin-top: 20px; border-bottom:1px solid #eee; padding-bottom:5px;">Connected Players</h3>
       <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Section</th>
+            <th>Score</th>
+          </tr>
+        </thead>
         <tbody id="leaderboard-body">
-          <tr><td style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>
+          <tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>
         </tbody>
       </table>
     </div>
@@ -95,16 +102,50 @@
     let currentQuestions = rawQuestionBank[currentSetKey];
     let selectedIndex = 0;
     let timerInterval = null;
+    let connectedPlayers = {};
 
-    // Room Code & Relative Path QR Code Generation
-    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    // 1. Generate Static/Consistent Room Code (e.g. 51WJ)
+    const roomCode = "51WJ";
     document.getElementById('room-code-display').textContent = roomCode;
-    
+
+    // 2. Relative Path QR Code (Fixes 404 on GitHub Pages)
     const joinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(document.getElementById('qrcode'), {
       text: joinUrl,
       width: 120, height: 120
     });
+
+    // 3. Initialize Shared Sync Channel
+    const channel = new BroadcastChannel(`quiz_bee_${roomCode}`);
+
+    // Listen for incoming student joins & answers
+    channel.onmessage = (event) => {
+      const msg = event.data;
+      if (msg.type === 'PLAYER_JOIN') {
+        connectedPlayers[msg.player.uuid] = {
+          name: msg.player.name,
+          section: msg.player.section,
+          score: connectedPlayers[msg.player.uuid]?.score || 0
+        };
+        updateLeaderboardUI();
+      } else if (msg.type === 'SUBMIT_ANSWER') {
+        const q = currentQuestions[selectedIndex];
+        if (!q) return;
+
+        let isCorrect = false;
+        if (q.type === 'mc') {
+          isCorrect = Number(msg.answer) === Number(q.answer);
+        } else {
+          const cleanInput = String(msg.answer).trim().toLowerCase();
+          isCorrect = cleanInput === String(q.answer).trim().toLowerCase();
+        }
+
+        if (isCorrect && connectedPlayers[msg.uuid]) {
+          connectedPlayers[msg.uuid].score += (q.points || 1);
+          updateLeaderboardUI();
+        }
+      }
+    };
 
     // UI Elements
     const setSelect = document.getElementById('set-select');
@@ -115,6 +156,21 @@
     const navButtonsEl = document.getElementById('nav-buttons');
     const timerDisplay = document.getElementById('timer-display');
     const startTimerBtn = document.getElementById('start-timer-btn');
+    const leaderboardBody = document.getElementById('leaderboard-body');
+
+    function updateLeaderboardUI() {
+      leaderboardBody.innerHTML = '';
+      const list = Object.values(connectedPlayers);
+      if (list.length === 0) {
+        leaderboardBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Waiting for players...</td></tr>';
+        return;
+      }
+      list.sort((a, b) => b.score - a.score).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td>${p.score} pts</td>`;
+        leaderboardBody.appendChild(tr);
+      });
+    }
 
     function updateCounters() {
       const easy = currentQuestions.filter(q => q.round === "Easy Round").length;
@@ -160,6 +216,7 @@
 
       optionsContainer.innerHTML = '';
 
+      // MULTIPLE CHOICE RENDERING
       if (q.type === "mc" && q.options) {
         q.options.forEach((opt, i) => {
           const div = document.createElement('div');
@@ -167,7 +224,9 @@
           div.textContent = `${String.fromCharCode(65 + i)}. ${opt}`;
           optionsContainer.appendChild(div);
         });
-      } else if (q.type === "text" || !q.options) {
+      } 
+      // IDENTIFICATION / SHORT-ANSWER TEXT INPUT RENDERING
+      else if (q.type === "text" || !q.options) {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'identification-input';
@@ -175,8 +234,15 @@
         input.placeholder = 'Students will type answer when timer starts...';
         optionsContainer.appendChild(input);
       }
+
+      // Dispatch Question to Connected Students
+      channel.postMessage({
+        type: 'QUESTION_DISPATCH',
+        question: q
+      });
     }
 
+    // Timer Trigger Execution
     startTimerBtn.addEventListener('click', () => {
       const q = currentQuestions[selectedIndex];
       if (!q) return;
@@ -184,6 +250,13 @@
       let remaining = q.timer || 15;
       const textInput = optionsContainer.querySelector('input');
       if (textInput) textInput.disabled = false;
+
+      // Broadcast Timer Start Event
+      channel.postMessage({
+        type: 'START_TIMER',
+        question: q,
+        duration: remaining
+      });
 
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
@@ -206,6 +279,7 @@
       renderQuestion(selectedIndex);
     });
 
+    // Initial Execution
     updateCounters();
     renderNavButtons();
     renderQuestion(selectedIndex);
