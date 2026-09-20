@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Quiz Bee - Player Controller</title>
   
-  <!-- PeerJS CDN -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <!-- HTML5 QR Code Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
@@ -22,8 +20,8 @@
     }
     h2 { margin-top: 0; color: #333; }
     input[type="text"] {
-      width: 100%; padding: 14px; margin: 8px 0; border: 2px solid #ddd;
-      border-radius: 8px; font-size: 1.1rem; text-align: center; box-sizing: border-box;
+      width: 100%; padding: 12px; margin: 6px 0; border: 2px solid #ddd;
+      border-radius: 8px; font-size: 1rem; text-align: center; box-sizing: border-box;
     }
     #roomCodeInput { text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
     input[type="text"]:focus { border-color: #007bff; outline: none; }
@@ -40,7 +38,6 @@
     }
     .btn-option:disabled { opacity: 0.6; cursor: not-allowed; }
     
-    /* QR Reader Modal */
     #reader-modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.85); z-index: 1000;
@@ -54,7 +51,8 @@
   <!-- JOIN SCREEN -->
   <div class="card" id="join-screen">
     <h2>Join Quiz Bee</h2>
-    <input type="text" id="playerNameInput" placeholder="Enter Your Name" />
+    <input type="text" id="playerNameInput" placeholder="Enter Your Full Name" />
+    <input type="text" id="playerSectionInput" placeholder="Enter Your Section (e.g. 11-Newton)" />
     <input type="text" id="roomCodeInput" placeholder="4-Digit Room Code" maxlength="4" />
     <button class="btn-primary" onclick="connectToHost()">Join Room</button>
     <button class="btn-secondary" onclick="openQRScanner()">📷 Scan QR Code</button>
@@ -80,7 +78,6 @@
     let html5QrcodeScanner = null;
     let isTimeUp = false;
 
-    // 1. Check URL parameters on page load (e.g. player.html?room=A1B2)
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const room = urlParams.get("room") || urlParams.get("code");
@@ -89,7 +86,6 @@
       }
     });
 
-    // 2. Camera QR Reader Modal Logic
     function openQRScanner() {
       document.getElementById("reader-modal").style.display = "flex";
       html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 220, height: 220 } });
@@ -116,23 +112,24 @@
       document.getElementById("reader-modal").style.display = "none";
     }
 
-    // 3. WebRTC PeerJS Connection Setup
     function connectToHost() {
       const name = document.getElementById("playerNameInput").value.trim();
+      const section = document.getElementById("playerSectionInput").value.trim() || "N/A";
       const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
 
-      if (!name || !code) return alert("Please enter both your name and room code.");
+      if (!name || !code) return alert("Please enter your name and room code.");
 
       peer = new Peer();
 
       peer.on('open', (id) => {
         const hostPeerId = `quizbee-room-${code}`;
-        conn = peer.connect(hostPeerId, { metadata: { name: name } });
+        // Transmit both name and section in peer metadata
+        conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
-          document.getElementById("status-msg").textContent = "Connected! Waiting for question...";
+          document.getElementById("status-msg").textContent = `Connected (${section})! Waiting for question...`;
         });
 
         conn.on('data', (payload) => {
@@ -150,7 +147,6 @@
       });
     }
 
-    // 4. Handle Payloads from Host Engine
     function handleIncomingPayload(payload) {
       if (payload.type === "NEW_QUESTION") {
         isTimeUp = false;
