@@ -1,1 +1,222 @@
-import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Science 7 Quiz Bee Host</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f4f6f9;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 800px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+    }
+
+    header {
+      border-bottom: 2px solid #eef2f5;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: #1a252f;
+    }
+
+    .badge {
+      background-color: #3498db;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .question-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .question-text {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .option-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 12px 15px;
+      font-size: 0.95rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .option-btn:hover {
+      border-color: #3498db;
+      background: #f0f7fc;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-primary {
+      background: #27ae60;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #219150;
+    }
+
+    .btn-secondary {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Science 7 Quiz Bee Platform</h1>
+      <span id="category-badge" class="badge">READY</span>
+    </header>
+
+    <main id="quiz-app">
+      <div class="question-card">
+        <div id="question-text" class="question-text">
+          Click "Next Question" to load the question bank.
+        </div>
+        <div id="options-container" class="options-grid">
+          <!-- Option buttons will be dynamically rendered here -->
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="prev-btn" class="btn btn-secondary">Previous</button>
+        <button id="next-btn" class="btn btn-primary">Next Question</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Javascript ES Module Execution -->
+  <script type="module">
+    import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
+
+    let currentIndex = 0;
+
+    const questionTextEl = document.getElementById('question-text');
+    const optionsContainerEl = document.getElementById('options-container');
+    const categoryBadgeEl = document.getElementById('category-badge');
+    const nextBtn = document.getElementById('next-btn');
+    const prevBtn = document.getElementById('prev-btn');
+
+    function renderQuestion(index) {
+      const qData = getSanitizedQuestionForClient(index);
+      if (!qData) return;
+
+      categoryBadgeEl.textContent = `${qData.category} (${qData.timeLimit}s)`;
+      questionTextEl.textContent = `${index + 1}. ${qData.question}`;
+      optionsContainerEl.innerHTML = '';
+
+      if (qData.type === 'MULTIPLE_CHOICE') {
+        qData.options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          btn.textContent = opt;
+          btn.addEventListener('click', () => {
+            const isCorrect = verifyAnswer(index, idx);
+            alert(isCorrect ? "Correct Choice!" : "Incorrect Choice!");
+          });
+          optionsContainerEl.appendChild(btn);
+        });
+      } else if (qData.type === 'IDENTIFICATION') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Type student answer here...';
+        input.style.cssText = 'width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;';
+        
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn btn-primary';
+        submitBtn.textContent = 'Verify Input';
+        submitBtn.style.marginTop = '10px';
+        submitBtn.addEventListener('click', () => {
+          const isCorrect = verifyAnswer(index, input.value);
+          alert(isCorrect ? "Correct Answer!" : "Incorrect Answer!");
+        });
+
+        optionsContainerEl.appendChild(input);
+        optionsContainerEl.appendChild(submitBtn);
+      }
+    }
+
+    nextBtn.addEventListener('click', () => {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestion(currentIndex);
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion(currentIndex);
+      }
+    });
+
+    // Initial Load
+    renderQuestion(currentIndex);
+  </script>
+</body>
+</html>
