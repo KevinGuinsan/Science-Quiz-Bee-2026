@@ -9,7 +9,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
-    .layout-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; width: 100%; max-width: 1100px; }
+    .layout-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; width: 100%; max-width: 1150px; }
     .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
     h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
     .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.8rem; margin-bottom: 15px; color: #0066ff; letter-spacing: 2px; }
@@ -33,7 +33,9 @@
     .nav-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 15px; }
     .counters { background: #eef2f5; padding: 10px 15px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; display: flex; gap: 15px; }
     .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .leaderboard-table th, .leaderboard-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.9rem; }
+    .leaderboard-table th, .leaderboard-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.85rem; }
+    .status-correct { color: #16a34a; font-weight: bold; }
+    .status-wrong { color: #dc2626; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -45,13 +47,13 @@
       <div id="qrcode"></div>
       <p style="font-size:0.75rem; text-align:center; color:#64748b; margin-bottom:15px;">Scan to join via <b>player.html</b></p>
       
-      <h3 style="font-size: 1rem; border-bottom:2px solid #0066ff; padding-bottom:5px; margin-top:10px;">🏆 Leaderboard</h3>
+      <h3 style="font-size: 1rem; border-bottom:2px solid #0066ff; padding-bottom:5px; margin-top:10px;">🏆 Leaderboard & Responses</h3>
       <table class="leaderboard-table">
         <thead>
           <tr style="color:#64748b;">
             <th>Player</th>
-            <th>Section</th>
             <th>Score</th>
+            <th>Result</th>
           </tr>
         </thead>
         <tbody id="leaderboard-body">
@@ -97,7 +99,6 @@
 
   <script src="questions.js"></script>
   <script>
-    // Generate fresh room code on host refresh and reset leaderboard
     const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     localStorage.setItem('qb_host_room', roomCode);
     localStorage.removeItem('qb_host_players'); 
@@ -108,9 +109,10 @@
     let connectedPlayers = {};
     let currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
     
-    let timerInterval = null;
+    let timerAnimFrame = null;
     let activeEndTime = null;
     let submittedAnswers = {}; 
+    let playerResults = {};
     let phoneConnections = [];
 
     document.getElementById('set-select').value = currentSetKey;
@@ -170,8 +172,12 @@
         return;
       }
       list.sort((a, b) => b.score - a.score).forEach(p => {
+        const resText = playerResults[p.uuid] 
+          ? (playerResults[p.uuid].isCorrect ? '<span class="status-correct">✓ Correct</span>' : '<span class="status-wrong">✗ Wrong</span>')
+          : '<span style="color:#94a3b8;">--</span>';
+
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td><b style="color:#0066ff;">${p.score} pts</b></td>`;
+        tr.innerHTML = `<td><b>${p.name}</b><br><small style="color:#64748b;">${p.section}</small></td><td><b style="color:#0066ff;">${p.score} pts</b></td><td>${resText}</td>`;
         leaderboardBody.appendChild(tr);
       });
     }
@@ -217,20 +223,28 @@
       const q = currentQuestions[selectedIndex];
       if (!q) return;
 
-      Object.keys(submittedAnswers).forEach(pid => {
+      playerResults = {};
+
+      Object.keys(connectedPlayers).forEach(pid => {
         const ans = submittedAnswers[pid];
         let isCorrect = false;
 
-        if (q.type === 'mc') {
-          isCorrect = Number(ans) === Number(q.answer);
-        } else {
-          const cleanInput = String(ans).trim().toLowerCase();
-          isCorrect = cleanInput === String(q.answer).trim().toLowerCase();
+        if (ans !== undefined && ans !== null) {
+          if (q.type === 'mc') {
+            isCorrect = Number(ans) === Number(q.answer);
+          } else {
+            isCorrect = String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase();
+          }
         }
 
-        if (isCorrect && connectedPlayers[pid]) {
+        if (isCorrect) {
           connectedPlayers[pid].score += (q.points || 1);
         }
+
+        playerResults[pid] = {
+          isCorrect: isCorrect,
+          submitted: ans
+        };
       });
 
       localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
@@ -245,8 +259,11 @@
     }
 
     function renderQuestion(index) {
-      clearInterval(timerInterval);
+      if (timerAnimFrame) cancelAnimationFrame(timerAnimFrame);
       submittedAnswers = {}; 
+      playerResults = {};
+      updateLeaderboardUI();
+
       const q = currentQuestions[index];
       if (!q) return;
 
@@ -286,6 +303,8 @@
       const durationMs = (q.timer || 15) * 1000;
       activeEndTime = Date.now() + durationMs;
       submittedAnswers = {};
+      playerResults = {};
+      updateLeaderboardUI();
 
       const textInput = optionsContainer.querySelector('input');
       if (textInput) textInput.disabled = false;
@@ -297,18 +316,22 @@
         duration: q.timer || 15
       });
 
-      clearInterval(timerInterval);
-      timerInterval = setInterval(() => {
+      if (timerAnimFrame) cancelAnimationFrame(timerAnimFrame);
+
+      function updateHostTimer() {
         const remaining = Math.max(0, activeEndTime - Date.now());
         timerDisplay.textContent = `${(remaining / 1000).toFixed(2)}s`;
 
-        if (remaining <= 0) {
-          clearInterval(timerInterval);
+        if (remaining > 0) {
+          timerAnimFrame = requestAnimationFrame(updateHostTimer);
+        } else {
           timerDisplay.textContent = "0.00s (TIME'S UP)";
           if (textInput) textInput.disabled = true;
           evaluateRoundAnswers();
         }
-      }, 30);
+      }
+
+      timerAnimFrame = requestAnimationFrame(updateHostTimer);
     });
 
     setSelect.addEventListener('change', (e) => {
