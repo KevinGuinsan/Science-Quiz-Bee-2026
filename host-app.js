@@ -145,7 +145,6 @@ function syncStateToPlayer(peerId) {
       player.conn.send({ type: "TIME_UP" });
       player.conn.send({ type: "REVEAL_ANSWER", correctAnswer: currentQuestion.correctAnswer });
     } else {
-      // Force client into WAITING_TIMER mode if question hasn't been started on host yet
       player.conn.send({ type: "RESET_TO_WAITING" });
     }
   }
