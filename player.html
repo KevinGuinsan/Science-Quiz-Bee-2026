@@ -104,6 +104,8 @@
     let isTimerActive = false;
     let isTimeUp = false;
     let selectedOptionIndex = null;
+    let playerTimerLoop = null;
+    let targetEndTime = 0;
 
     let playerId = localStorage.getItem("qb_pid");
     if (!playerId) {
@@ -150,15 +152,17 @@
     });
 
     function clearSessionState() {
+      clearInterval(playerTimerLoop);
       localStorage.removeItem("qb_joined");
       localStorage.removeItem("qb_room");
       localStorage.removeItem("qb_question");
       localStorage.removeItem("qb_category");
       localStorage.removeItem("qb_options");
       localStorage.removeItem("qb_qindex");
-      localStorage.removeItem("qb_state_status"); // 'WAITING_TIMER' | 'TIMER_RUNNING' | 'TIME_UP'
+      localStorage.removeItem("qb_state_status");
       localStorage.removeItem("qb_selected_choice");
       localStorage.removeItem("qb_correct_answer");
+      localStorage.removeItem("qb_end_time");
       if (conn) {
         try { conn.close(); } catch(e) {}
         conn = null;
@@ -173,6 +177,7 @@
       const stateStatus = localStorage.getItem("qb_state_status") || "WAITING_TIMER";
       const savedChoice = localStorage.getItem("qb_selected_choice");
       const savedCorrectAns = localStorage.getItem("qb_correct_answer");
+      const savedEndTime = parseInt(localStorage.getItem("qb_end_time") || "0", 10);
 
       if (cachedQ && cachedOpts.length > 0) {
         document.getElementById("question-text").textContent = cachedQ;
@@ -194,9 +199,10 @@
             statusEl.textContent = "⏱️ Time's Up!";
             disableAllOptions();
           }
-        } else if (stateStatus === "TIMER_RUNNING") {
+        } else if (stateStatus === "TIMER_RUNNING" && savedEndTime > Date.now()) {
           isTimerActive = true;
           isTimeUp = false;
+          targetEndTime = savedEndTime;
           renderOptions(cachedOpts, false);
           
           if (savedChoice !== null) {
@@ -204,7 +210,7 @@
             const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
             if (btn) btn.classList.add("selected");
           }
-          statusEl.textContent = "⏱️ Timer Active! Select your answer.";
+          startPlayerTimerLoop();
         } else { // WAITING_TIMER
           isTimerActive = false;
           isTimeUp = false;
@@ -212,6 +218,30 @@
           statusEl.textContent = `Question ${parseInt(cachedQIndex || 0, 10) + 1} (Read question, waiting for host to start timer...)`;
         }
       }
+    }
+
+    function startPlayerTimerLoop() {
+      clearInterval(playerTimerLoop);
+      const statusEl = document.getElementById("status-msg");
+
+      playerTimerLoop = setInterval(() => {
+        const remainingMs = Math.max(0, targetEndTime - Date.now());
+        const sec = Math.floor(remainingMs / 1000);
+        const ms = Math.floor((remainingMs % 1000) / 10);
+
+        if (remainingMs > 0 && isTimerActive) {
+          statusEl.className = "";
+          statusEl.textContent = `⏱️ Time Remaining: ${sec}.${ms < 10 ? '0' : ''}${ms}s`;
+        } else {
+          clearInterval(playerTimerLoop);
+          if (isTimerActive) {
+            isTimeUp = true;
+            isTimerActive = false;
+            disableAllOptions();
+            statusEl.textContent = "⏱️ Time's Up!";
+          }
+        }
+      }, 30);
     }
 
     function openQRScanner() {
@@ -309,6 +339,7 @@
       const statusEl = document.getElementById("status-msg");
 
       if (payload.type === "NEW_QUESTION") {
+        clearInterval(playerTimerLoop);
         isTimerActive = false;
         isTimeUp = false;
         selectedOptionIndex = null;
@@ -320,6 +351,7 @@
         localStorage.setItem("qb_state_status", "WAITING_TIMER");
         localStorage.removeItem("qb_selected_choice");
         localStorage.removeItem("qb_correct_answer");
+        localStorage.removeItem("qb_end_time");
 
         statusEl.className = "";
         statusEl.textContent = `Question ${payload.questionIndex + 1} (Read question, waiting for host to start timer...)`;
@@ -333,21 +365,22 @@
       } else if (payload.type === "TIMER_STARTED") {
         isTimerActive = true;
         isTimeUp = false;
+        targetEndTime = payload.endTime || (Date.now() + payload.timeMs);
+        
         localStorage.setItem("qb_state_status", "TIMER_RUNNING");
+        localStorage.setItem("qb_end_time", targetEndTime);
+
         enableAllOptions();
-        statusEl.className = "";
-        statusEl.textContent = "⏱️ Timer Started! Select your answer.";
-      } else if (payload.type === "TIMER_SYNC") {
-        if (!isTimeUp && isTimerActive) {
-          statusEl.className = "";
-          statusEl.textContent = `⏱️ Time Remaining: ${payload.timeRemaining}s`;
-        }
+        startPlayerTimerLoop();
       } else if (payload.type === "TIME_UP") {
+        clearInterval(playerTimerLoop);
         isTimeUp = true;
         isTimerActive = false;
         localStorage.setItem("qb_state_status", "TIME_UP");
         disableAllOptions();
+        statusEl.textContent = "⏱️ Time's Up!";
       } else if (payload.type === "REVEAL_ANSWER") {
+        clearInterval(playerTimerLoop);
         localStorage.setItem("qb_state_status", "TIME_UP");
         localStorage.setItem("qb_correct_answer", payload.correctAnswer);
         revealCorrectAnswer(payload.correctAnswer);
