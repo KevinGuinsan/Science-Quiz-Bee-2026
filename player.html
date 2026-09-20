@@ -24,9 +24,9 @@
     .option-btn.selected { border: 2px solid #0066ff !important; background-color: #e0f2fe; }
     .option-btn.correct { border: 2px solid #16a34a !important; background-color: #dcfce7 !important; color: #15803d; font-weight: bold; }
     .option-btn.wrong { border: 2px solid #dc2626 !important; background-color: #fee2e2 !important; color: #b91c1c; font-weight: bold; }
-    .result-banner { text-align: center; font-weight: bold; margin-top: 10px; font-size: 1.1rem; }
-    .result-banner.correct { color: #16a34a; }
-    .result-banner.wrong { color: #dc2626; }
+    .result-banner { text-align: center; font-weight: bold; margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 1rem; display: none; }
+    .result-banner.correct { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; display: block; }
+    .result-banner.wrong { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; display: block; }
   </style>
 </head>
 <body>
@@ -148,7 +148,7 @@
       if (msg.type === 'QUESTION_DISPATCH') {
         clearInterval(timerInterval);
         mySelectedAnswer = null;
-        resultBanner.textContent = '';
+        resultBanner.style.display = 'none';
         renderQuestion(msg.question);
         timerDisplay.textContent = `${(msg.question.timer || 15).toFixed(2)}s`;
       } else if (msg.type === 'START_TIMER') {
@@ -220,6 +220,7 @@
         };
       }
 
+      // Synchronize exact millisecond countdown against shared host Target Timestamp
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         const remaining = Math.max(0, endTime - Date.now());
@@ -269,7 +270,7 @@
           textInput.style.border = '2px solid #dc2626';
           textInput.style.backgroundColor = '#fee2e2';
           resultBanner.className = 'result-banner wrong';
-          resultBanner.textContent = `✗ Incorrect. Correct: ${correctAnswer}`;
+          resultBanner.textContent = `✗ Incorrect. Correct answer: ${correctAnswer}`;
         }
       }
     }
