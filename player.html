@@ -105,7 +105,6 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
-    // Auto-reconnect & credential recovery on page load/refresh
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomFromUrl = urlParams.get("room") || urlParams.get("code");
@@ -113,6 +112,7 @@
       const savedName = localStorage.getItem("qb_name");
       const savedSection = localStorage.getItem("qb_section");
       const savedRoom = localStorage.getItem("qb_room") || roomFromUrl;
+      const isJoined = localStorage.getItem("qb_joined") === "true";
 
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
@@ -121,13 +121,50 @@
         const roomInput = document.getElementById("roomCodeInput");
         roomInput.value = savedRoom.trim().toUpperCase();
         if (roomFromUrl) roomInput.disabled = true;
+      }
 
-        // AUTOMATIC RECONNECT ON PAGE REFRESH
-        if (savedName && savedSection && savedRoom) {
-          connectToHost();
-        }
+      // 1. Instant UI Restoration if user was already in an active session
+      if (isJoined && savedName && savedSection && savedRoom) {
+        document.getElementById("join-screen").style.display = "none";
+        document.getElementById("game-screen").style.display = "block";
+        document.getElementById("player-tag").textContent = `${savedName} (${savedSection})`;
+
+        restoreCachedGameState();
+        connectToHost(true); // Connect quietly in background
       }
     });
+
+    function restoreCachedGameState() {
+      const cachedQ = localStorage.getItem("qb_question");
+      const cachedCat = localStorage.getItem("qb_category") || "EASY";
+      const cachedOpts = JSON.parse(localStorage.getItem("qb_options") || "[]");
+      const cachedQIndex = localStorage.getItem("qb_qindex");
+      const timerActive = localStorage.getItem("qb_timer_active") === "true";
+      const savedChoice = localStorage.getItem("qb_selected_choice");
+
+      if (cachedQ && cachedOpts.length > 0) {
+        document.getElementById("question-text").textContent = cachedQ;
+        const badge = document.getElementById("category-badge");
+        badge.textContent = cachedCat;
+        badge.className = `badge badge-${cachedCat}`;
+
+        isTimerActive = timerActive;
+        renderOptions(cachedOpts, !timerActive);
+
+        if (savedChoice !== null) {
+          selectedOptionIndex = parseInt(savedChoice, 10);
+          const btn = document.getElementById(`opt-btn-${selectedOptionIndex}`);
+          if (btn) btn.classList.add("selected");
+        }
+
+        const statusEl = document.getElementById("status-msg");
+        if (timerActive) {
+          statusEl.textContent = "⏱️ Timer Active! Select your answer.";
+        } else {
+          statusEl.textContent = `Question ${parseInt(cachedQIndex || 0, 10) + 1} (Read question, waiting for host to start timer...)`;
+        }
+      }
+    }
 
     function openQRScanner() {
       document.getElementById("reader-modal").style.display = "flex";
@@ -157,7 +194,7 @@
       document.getElementById("reader-modal").style.display = "none";
     }
 
-    function connectToHost() {
+    function connectToHost(isSilentReconnect = false) {
       const name = document.getElementById("playerNameInput").value.trim();
       const section = document.getElementById("playerSectionInput").value.trim();
       const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
@@ -166,10 +203,10 @@
       if (!section) return alert("Please enter your section.");
       if (!code) return alert("Please enter a valid room code.");
 
-      // Save credentials locally for auto-reconnect on refresh
       localStorage.setItem("qb_name", name);
       localStorage.setItem("qb_section", section);
       localStorage.setItem("qb_room", code);
+      localStorage.setItem("qb_joined", "true");
 
       peer = new Peer();
 
@@ -178,12 +215,12 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
-          // Permanently hide join card on active connection
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
-          document.getElementById("status-msg").className = "";
-          document.getElementById("status-msg").textContent = "Connected! Waiting for host to send question...";
+
+          // Request active state snapshot from host upon reconnect
+          conn.send({ type: "REQUEST_STATE_SYNC" });
         });
 
         conn.on('data', (payload) => {
@@ -197,10 +234,12 @@
       });
 
       peer.on('error', (err) => {
-        localStorage.removeItem("qb_room");
-        document.getElementById("join-screen").style.display = "block";
-        document.getElementById("game-screen").style.display = "none";
-        alert("Could not connect to host. Check the Room Code and try again.");
+        if (!isSilentReconnect) {
+          localStorage.removeItem("qb_joined");
+          document.getElementById("join-screen").style.display = "block";
+          document.getElementById("game-screen").style.display = "none";
+          alert("Could not connect to host. Check the Room Code and try again.");
+        }
       });
     }
 
@@ -212,6 +251,14 @@
         isTimeUp = false;
         selectedOptionIndex = null;
         
+        // Cache question state for instant refresh restoration
+        localStorage.setItem("qb_question", payload.question);
+        localStorage.setItem("qb_category", payload.category);
+        localStorage.setItem("qb_options", JSON.stringify(payload.options));
+        localStorage.setItem("qb_qindex", payload.questionIndex);
+        localStorage.setItem("qb_timer_active", "false");
+        localStorage.removeItem("qb_selected_choice");
+
         statusEl.className = "";
         statusEl.textContent = `Question ${payload.questionIndex + 1} (Read question, waiting for host to start timer...)`;
         document.getElementById("question-text").textContent = payload.question;
@@ -220,12 +267,12 @@
         badge.textContent = payload.category;
         badge.className = `badge badge-${payload.category}`;
 
-        // Options render disabled until host clicks "Start Timer"
         renderOptions(payload.options, true);
       } else if (payload.type === "TIMER_STARTED") {
         isTimerActive = true;
         isTimeUp = false;
-        enableAllOptions(); // Unlocks choices when host starts timer
+        localStorage.setItem("qb_timer_active", "true");
+        enableAllOptions();
         statusEl.className = "";
         statusEl.textContent = "⏱️ Timer Started! Select your answer.";
       } else if (payload.type === "TIMER_SYNC") {
@@ -236,6 +283,7 @@
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
         isTimerActive = false;
+        localStorage.setItem("qb_timer_active", "false");
         disableAllOptions();
       } else if (payload.type === "REVEAL_ANSWER") {
         revealCorrectAnswer(payload.correctAnswer);
@@ -263,6 +311,7 @@
       if (!isTimerActive || isTimeUp) return;
 
       selectedOptionIndex = selectedIndex;
+      localStorage.setItem("qb_selected_choice", selectedIndex);
 
       const buttons = document.querySelectorAll(".btn-option");
       buttons.forEach((btn, idx) => {
