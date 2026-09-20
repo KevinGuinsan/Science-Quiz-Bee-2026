@@ -16,9 +16,9 @@
     }
     .card {
       background: #ffffff; padding: 25px; border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center;
     }
-    h2 { margin-top: 0; color: #333; }
+    h2, h3 { margin-top: 0; color: #333; }
     input[type="text"] {
       width: 100%; padding: 12px; margin: 6px 0; border: 2px solid #ddd;
       border-radius: 8px; font-size: 1rem; text-align: center; box-sizing: border-box;
@@ -35,6 +35,7 @@
     .btn-option {
       background-color: #eef2f5; color: #333; font-size: 1.1rem;
       border: 2px solid #ccc; margin-bottom: 10px; text-align: left; padding: 14px 16px; width: 100%;
+      border-radius: 8px; font-weight: 500;
     }
     .btn-option:disabled { opacity: 0.6; cursor: not-allowed; }
     
@@ -44,24 +45,43 @@
       justify-content: center; align-items: center; flex-direction: column;
     }
     #reader-box { width: 90%; max-width: 380px; background: #fff; padding: 20px; border-radius: 12px; }
+    .leaderboard-box { background: #f8f9fa; padding: 12px; border-radius: 8px; margin-top: 20px; text-align: left; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #fff; font-weight: bold; }
+    .badge-EASY { background-color: #28a745; }
+    .badge-MODERATE { background-color: #ffc107; color: #212529; }
+    .badge-DIFFICULT { background-color: #dc3545; }
   </style>
 </head>
 <body>
 
-  <!-- JOIN SCREEN -->
+  <!-- JOIN SCREEN (Hides permanently after joining) -->
   <div class="card" id="join-screen">
     <h2>Join Quiz Bee</h2>
     <input type="text" id="playerNameInput" placeholder="Enter Your Full Name" />
     <input type="text" id="playerSectionInput" placeholder="Enter Your Section (e.g. 11-Newton)" />
     <input type="text" id="roomCodeInput" placeholder="4-Digit Room Code" maxlength="4" />
     <button class="btn-primary" onclick="connectToHost()">Join Room</button>
-    <button class="btn-secondary" onclick="openQRScanner()">📷 Scan QR Code</button>
+    <button class="btn-secondary" id="scanQrBtn" onclick="openQRScanner()">📷 Scan QR Code</button>
   </div>
 
   <!-- GAMEPLAY SCREEN -->
   <div class="card" id="game-screen" style="display: none;">
-    <h3 id="status-msg">Waiting for host...</h3>
-    <div id="options-container" style="margin-top: 20px;"></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <span id="player-tag" style="font-weight: bold; color: #666;"></span>
+      <span id="category-badge" class="badge badge-EASY">EASY</span>
+    </div>
+    
+    <h3 id="status-msg">Connected! Waiting for host...</h3>
+    <h2 id="question-text" style="font-size: 1.25rem; margin: 15px 0;"></h2>
+
+    <!-- OPTIONS -->
+    <div id="options-container" style="margin-top: 15px;"></div>
+
+    <!-- LIVE LEADERBOARD -->
+    <div class="leaderboard-box">
+      <h4 style="margin: 0 0 8px 0; color: #007bff;">🏆 Live Scoreboard</h4>
+      <div id="player-leaderboard">Waiting for scores...</div>
+    </div>
   </div>
 
   <!-- QR READER MODAL -->
@@ -78,6 +98,7 @@
     let html5QrcodeScanner = null;
     let isTimeUp = false;
 
+    // Auto-fill room code from QR Link parameter
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const room = urlParams.get("room") || urlParams.get("code");
@@ -123,13 +144,14 @@
 
       peer.on('open', (id) => {
         const hostPeerId = `quizbee-room-${code}`;
-        // Transmit both name and section in peer metadata
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
+          // Hide Join screen permanently
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
-          document.getElementById("status-msg").textContent = `Connected (${section})! Waiting for question...`;
+          document.getElementById("player-tag").textContent = `${name} (${section})`;
+          document.getElementById("status-msg").textContent = "Connected! Waiting for host to send question...";
         });
 
         conn.on('data', (payload) => {
@@ -150,16 +172,24 @@
     function handleIncomingPayload(payload) {
       if (payload.type === "NEW_QUESTION") {
         isTimeUp = false;
-        document.getElementById("status-msg").textContent = `Question ${payload.questionIndex + 1} (${payload.category})`;
+        document.getElementById("status-msg").textContent = `Question ${payload.questionIndex + 1}`;
+        document.getElementById("question-text").textContent = payload.question;
+        
+        const badge = document.getElementById("category-badge");
+        badge.textContent = payload.category;
+        badge.className = `badge badge-${payload.category}`;
+
         renderOptions(payload.options);
       } else if (payload.type === "TIMER_SYNC") {
         if (!isTimeUp) {
-          document.getElementById("status-msg").textContent = `Time Remaining: ${payload.timeRemaining}s`;
+          document.getElementById("status-msg").textContent = `⏱️ Time Remaining: ${payload.timeRemaining}s`;
         }
       } else if (payload.type === "TIME_UP") {
         isTimeUp = true;
         document.getElementById("status-msg").textContent = "⏱️ Time's Up!";
         disableAllOptions();
+      } else if (payload.type === "LEADERBOARD_UPDATE") {
+        renderLeaderboard(payload.scores);
       }
     }
 
@@ -194,6 +224,18 @@
     function disableAllOptions() {
       const buttons = document.querySelectorAll(".btn-option");
       buttons.forEach(btn => btn.disabled = true);
+    }
+
+    function renderLeaderboard(scores) {
+      const el = document.getElementById("player-leaderboard");
+      if (!scores || scores.length === 0) return;
+
+      el.innerHTML = scores.map((s, idx) => `
+        <div style="display:flex; justify-between; font-size: 0.9rem; margin-bottom: 4px;">
+          <span><strong>#${idx + 1} ${s.name}</strong> (${s.section})</span>
+          <span style="margin-left: auto;"><strong>${s.total} pts</strong></span>
+        </div>
+      `).join("");
     }
   </script>
 </body>
