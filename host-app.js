@@ -123,6 +123,9 @@ function startManualTimer() {
   clearInterval(timerInterval);
   remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
 
+  // Signal players to unlock option buttons
+  broadcastPayload({ type: "TIMER_STARTED", timeLimit: remainingTime });
+
   timerInterval = setInterval(() => {
     remainingTime--;
 
@@ -158,7 +161,6 @@ function gradeCurrentQuestion() {
     }
   });
 
-  // Reveal correct answer to both host and players
   broadcastPayload({ type: "REVEAL_ANSWER", correctAnswer: correctChoice });
   
   if (typeof revealHostAnswer === "function") {
