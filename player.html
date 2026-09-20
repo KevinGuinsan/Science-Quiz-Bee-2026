@@ -99,14 +99,16 @@
       roomInput.style.backgroundColor = '#f1f5f9';
     }
 
+    // Auto-fill previous student details, but demand room submit if host restarted session
     const savedInfo = localStorage.getItem('qb_player_info');
     if (savedInfo) {
       const playerData = JSON.parse(savedInfo);
-      playerData.uuid = playerUuid;
-      roomInput.value = playerData.room;
-      nameInput.value = playerData.name;
-      sectionInput.value = playerData.section;
-      connectToGame(playerData);
+      if (roomFromUrl && roomFromUrl.toUpperCase() === playerData.room) {
+        connectToGame(playerData);
+      } else {
+        nameInput.value = playerData.name;
+        sectionInput.value = playerData.section;
+      }
     }
 
     joinForm.addEventListener('submit', (e) => {
@@ -220,7 +222,6 @@
         };
       }
 
-      // Synchronize exact millisecond countdown against shared host Target Timestamp
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         const remaining = Math.max(0, endTime - Date.now());
