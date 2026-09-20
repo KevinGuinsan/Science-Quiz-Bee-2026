@@ -1,6 +1,6 @@
 /**
  * Core Host Engine (host-app.js)
- * Shared WebRTC Controller, Dynamic Set Resolver, Leaderboard Broadcaster & CSV Exporter
+ * Shared WebRTC Controller, Dynamic QR Generator, Score Tracker & Leaderboard Broadcaster
  */
 
 let peer = null;
@@ -12,6 +12,9 @@ let currentQuestion = null;
 let timerInterval = null;
 let remainingTime = 0;
 
+/**
+ * Initialize Host Room Session
+ */
 function initHostRoom() {
   roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const peerId = `quizbee-room-${roomCode}`;
@@ -54,6 +57,9 @@ function initHostRoom() {
   });
 }
 
+/**
+ * Change Question Set from Local questions.js Object
+ */
 function changeQuestionSet(setKey) {
   if (typeof QUIZ_DATASETS !== "undefined" && QUIZ_DATASETS[setKey]) {
     activeDataset = QUIZ_DATASETS[setKey];
@@ -63,6 +69,9 @@ function changeQuestionSet(setKey) {
   currentQuestionIndex = 0;
 }
 
+/**
+ * Resolves Root Repository Path & Renders QR Code for player.html?room=XXXX
+ */
 function renderHostQRCode(code) {
   const qrContainer = document.getElementById("qrcode-container");
   if (!qrContainer) return;
@@ -72,9 +81,11 @@ function renderHostQRCode(code) {
   const origin = window.location.origin;
   const pathSegments = window.location.pathname.split('/').filter(Boolean);
 
+  // Strip trailing HTML file if present
   if (pathSegments.length > 0 && pathSegments[pathSegments.length - 1].endsWith('.html')) {
     pathSegments.pop();
   }
+  // Strip subfolders like 'grade7', 'grade11' to resolve root player.html
   if (pathSegments.length > 0 && pathSegments[pathSegments.length - 1].startsWith('grade')) {
     pathSegments.pop();
   }
@@ -94,12 +105,16 @@ function renderHostQRCode(code) {
   }
 }
 
+/**
+ * Dispatch Question Payload to Host and Connected Players
+ */
 function sendQuestionToPlayers(questionIndex) {
   if (!activeDataset || !activeDataset[questionIndex]) return;
 
   currentQuestionIndex = questionIndex;
   currentQuestion = activeDataset[questionIndex];
 
+  // Reset player answers for this item
   Object.keys(connectedPlayers).forEach(id => {
     connectedPlayers[id].currentAnswer = null;
   });
@@ -119,6 +134,9 @@ function sendQuestionToPlayers(questionIndex) {
   }
 }
 
+/**
+ * Manual Timer Controls
+ */
 function startManualTimer() {
   clearInterval(timerInterval);
   remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
@@ -161,6 +179,9 @@ function gradeCurrentQuestion() {
   broadcastLeaderboard();
 }
 
+/**
+ * Broadcast Updated Scores to Players and Update Host UI
+ */
 function broadcastLeaderboard() {
   const formattedScores = Object.values(connectedPlayers).map(p => {
     const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
@@ -203,6 +224,9 @@ function updateScoreboardUI(scores) {
     .join("");
 }
 
+/**
+ * CSV Exporter
+ */
 function exportScoresCSV() {
   let csvContent = "data:text/csv;charset=utf-8,Player Name,Section,Easy,Moderate,Difficult,Total Score\n";
 
