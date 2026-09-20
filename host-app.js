@@ -1,6 +1,6 @@
 /**
  * Core Host Engine (host-app.js)
- * Shared WebRTC Controller, Permanent Score Registry & Leaderboard Broadcaster
+ * Shared WebRTC Controller, Permanent Score Registry & Millisecond Precision Timer
  */
 
 let peer = null;
@@ -13,7 +13,7 @@ let activeDataset = [];
 let currentQuestionIndex = 0;
 let currentQuestion = null;
 let timerInterval = null;
-let remainingTime = 0;
+let targetEndTime = 0;
 let isTimerRunning = false;
 let isQuestionFinished = false;
 
@@ -75,7 +75,7 @@ function initHostRoom() {
 }
 
 function handlePlayerAnswer(persistentId, choiceIndex) {
-  if (playerRegistry[persistentId] && remainingTime > 0) {
+  if (playerRegistry[persistentId] && isTimerRunning && !isQuestionFinished) {
     playerRegistry[persistentId].currentAnswer = choiceIndex;
   }
 }
@@ -85,7 +85,7 @@ function gradeCurrentQuestion() {
 
   isQuestionFinished = true;
   const correctChoice = currentQuestion.correctAnswer;
-  const cat = currentQuestion.category || "EASY";
+  const cat = (currentQuestion.category || "EASY").toUpperCase();
 
   Object.values(playerRegistry).forEach(player => {
     if (player.currentAnswer === correctChoice) {
@@ -139,8 +139,8 @@ function syncStateToPlayer(peerId) {
     });
 
     if (isTimerRunning) {
-      player.conn.send({ type: "TIMER_STARTED", timeLimit: remainingTime });
-      player.conn.send({ type: "TIMER_SYNC", timeRemaining: remainingTime });
+      const remainingMs = Math.max(0, targetEndTime - Date.now());
+      player.conn.send({ type: "TIMER_STARTED", timeMs: remainingMs, endTime: targetEndTime });
     } else if (isQuestionFinished) {
       player.conn.send({ type: "TIME_UP" });
       player.conn.send({ type: "REVEAL_ANSWER", correctAnswer: currentQuestion.correctAnswer });
@@ -219,29 +219,44 @@ function sendQuestionToPlayers(questionIndex) {
   }
 }
 
+// Set category timer: EASY = 10s, MODERATE = 15s, DIFFICULT = 20s
+function getCategoryTimeLimit(category) {
+  const cat = (category || "EASY").toUpperCase();
+  if (cat === "EASY") return 10;
+  if (cat === "MODERATE") return 15;
+  if (cat === "DIFFICULT") return 20;
+  return 15;
+}
+
 function startManualTimer() {
   clearInterval(timerInterval);
   isTimerRunning = true;
   isQuestionFinished = false;
-  remainingTime = currentQuestion ? currentQuestion.timeLimit || 15 : 15;
 
-  broadcastPayload({ type: "TIMER_STARTED", timeLimit: remainingTime });
+  const durationSec = currentQuestion ? getCategoryTimeLimit(currentQuestion.category) : 10;
+  const durationMs = durationSec * 1000;
+  targetEndTime = Date.now() + durationMs;
+
+  // Broadcast timer start with explicit duration and synchronized end target
+  broadcastPayload({ type: "TIMER_STARTED", timeMs: durationMs, endTime: targetEndTime });
 
   timerInterval = setInterval(() => {
-    remainingTime--;
-
-    broadcastPayload({ type: "TIMER_SYNC", timeRemaining: remainingTime });
+    const remainingMs = Math.max(0, targetEndTime - Date.now());
 
     const timerDisplay = document.getElementById("timer-display");
-    if (timerDisplay) timerDisplay.textContent = `${remainingTime}s`;
+    if (timerDisplay) {
+      const sec = Math.floor(remainingMs / 1000);
+      const ms = Math.floor((remainingMs % 1000) / 10);
+      timerDisplay.textContent = `${sec}.${ms < 10 ? '0' : ''}${ms}s`;
+    }
 
-    if (remainingTime <= 0) {
+    if (remainingMs <= 0) {
       clearInterval(timerInterval);
       isTimerRunning = false;
       broadcastPayload({ type: "TIME_UP" });
       gradeCurrentQuestion();
     }
-  }, 1000);
+  }, 30); // Smooth high-frequency tick for millisecond accuracy
 }
 
 function updatePlayerListUI() {
