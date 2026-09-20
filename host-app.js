@@ -1,11 +1,16 @@
 /**
  * Core Host Engine (host-app.js)
- * Shared WebRTC Controller, Score Tracker, Live Answer Revealer & Leaderboard Broadcaster
+ * Shared WebRTC Controller, Permanent Score Registry & Leaderboard Broadcaster
  */
 
 let peer = null;
 let roomCode = "";
-let connectedPlayers = {}; // peerId -> { persistentId, name, section, conn, scores: { EASY:0, MODERATE:0, DIFFICULT:0 }, currentAnswer: null }
+
+// 1. Permanent Score Registry (Keyed by playerId or Name+Section)
+let playerRegistry = {}; 
+// 2. Active Socket Mappings (peerId -> playerId)
+let socketMap = {};
+
 let activeDataset = [];
 let currentQuestionIndex = 0;
 let currentQuestion = null;
@@ -29,59 +34,102 @@ function initHostRoom() {
     conn.on('open', () => {
       const playerName = conn.metadata?.name || "Anonymous";
       const playerSection = conn.metadata?.section || "N/A";
-      const persistentId = conn.metadata?.playerId || playerName;
+      const persistentId = conn.metadata?.playerId || `${playerName}_${playerSection}`;
       const clientRoomCode = (conn.metadata?.roomCode || "").toUpperCase();
 
-      // REJECT CONNECTION IF CLIENT ROOM CODE DOES NOT MATCH ACTIVE HOST ROOM
+      // Reject connection if room codes mismatch
       if (clientRoomCode && clientRoomCode !== roomCode) {
         conn.close();
         return;
       }
 
-      // Preserve score if student is reconnecting to the SAME host room
-      let existingScores = { EASY: 0, MODERATE: 0, DIFFICULT: 0 };
-      
-      const existingPeerKey = Object.keys(connectedPlayers).find(
-        key => connectedPlayers[key].persistentId === persistentId || 
-               (connectedPlayers[key].name === playerName && connectedPlayers[key].section === playerSection)
-      );
-
-      if (existingPeerKey) {
-        existingScores = connectedPlayers[existingPeerKey].scores;
-        delete connectedPlayers[existingPeerKey];
+      // Initialize or retrieve existing score profile
+      if (!playerRegistry[persistentId]) {
+        playerRegistry[persistentId] = {
+          persistentId: persistentId,
+          name: playerName,
+          section: playerSection,
+          scores: { EASY: 0, MODERATE: 0, DIFFICULT: 0 },
+          currentAnswer: null
+        };
       }
 
-      connectedPlayers[conn.peer] = {
-        persistentId: persistentId,
-        name: playerName,
-        section: playerSection,
-        conn: conn,
-        scores: existingScores,
-        currentAnswer: null
-      };
+      // Map current WebRTC connection socket
+      playerRegistry[persistentId].conn = conn;
+      socketMap[conn.peer] = persistentId;
 
       updatePlayerListUI();
       broadcastLeaderboard();
     });
 
     conn.on('data', (payload) => {
+      const pId = socketMap[conn.peer];
       if (payload.type === "SUBMIT_ANSWER") {
-        handlePlayerAnswer(conn.peer, payload.choiceIndex);
+        handlePlayerAnswer(pId, payload.choiceIndex);
       } else if (payload.type === "REQUEST_STATE_SYNC") {
         syncStateToPlayer(conn.peer);
       }
     });
 
     conn.on('close', () => {
-      delete connectedPlayers[conn.peer];
+      delete socketMap[conn.peer];
       updatePlayerListUI();
-      broadcastLeaderboard();
     });
   });
 }
 
+function handlePlayerAnswer(persistentId, choiceIndex) {
+  if (playerRegistry[persistentId] && remainingTime > 0) {
+    playerRegistry[persistentId].currentAnswer = choiceIndex;
+  }
+}
+
+function gradeCurrentQuestion() {
+  if (!currentQuestion) return;
+
+  const correctChoice = currentQuestion.correctAnswer;
+  const cat = currentQuestion.category || "EASY";
+
+  Object.values(playerRegistry).forEach(player => {
+    if (player.currentAnswer === correctChoice) {
+      player.scores[cat] = (player.scores[cat] || 0) + 1;
+    }
+  });
+
+  broadcastPayload({ type: "REVEAL_ANSWER", correctAnswer: correctChoice });
+  
+  if (typeof revealHostAnswer === "function") {
+    revealHostAnswer(correctChoice);
+  }
+
+  broadcastLeaderboard();
+}
+
+function broadcastLeaderboard() {
+  const formattedScores = Object.values(playerRegistry).map(p => {
+    const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
+    return { name: p.name, section: p.section, total: total, scores: p.scores };
+  }).sort((a, b) => b.total - a.total);
+
+  updateScoreboardUI(formattedScores);
+
+  broadcastPayload({
+    type: "LEADERBOARD_UPDATE",
+    scores: formattedScores
+  });
+}
+
+function broadcastPayload(payload) {
+  Object.values(playerRegistry).forEach(p => {
+    if (p.conn && p.conn.open) {
+      p.conn.send(payload);
+    }
+  });
+}
+
 function syncStateToPlayer(peerId) {
-  const player = connectedPlayers[peerId];
+  const pId = socketMap[peerId];
+  const player = playerRegistry[pId];
   if (!player || !player.conn) return;
 
   if (currentQuestion) {
@@ -151,8 +199,8 @@ function sendQuestionToPlayers(questionIndex) {
   currentQuestionIndex = questionIndex;
   currentQuestion = activeDataset[questionIndex];
 
-  Object.keys(connectedPlayers).forEach(id => {
-    connectedPlayers[id].currentAnswer = null;
+  Object.values(playerRegistry).forEach(p => {
+    p.currentAnswer = null;
   });
 
   const payload = {
@@ -194,72 +242,18 @@ function startManualTimer() {
   }, 1000);
 }
 
-function handlePlayerAnswer(peerId, choiceIndex) {
-  if (connectedPlayers[peerId] && remainingTime > 0) {
-    connectedPlayers[peerId].currentAnswer = choiceIndex;
-  }
-}
-
-function gradeCurrentQuestion() {
-  if (!currentQuestion) return;
-
-  const correctChoice = currentQuestion.correctAnswer;
-  const cat = currentQuestion.category || "EASY";
-
-  Object.keys(connectedPlayers).forEach(id => {
-    const player = connectedPlayers[id];
-    if (player.currentAnswer === correctChoice) {
-      player.scores[cat] = (player.scores[cat] || 0) + 1;
-    }
-  });
-
-  broadcastPayload({ type: "REVEAL_ANSWER", correctAnswer: correctChoice });
-  
-  if (typeof revealHostAnswer === "function") {
-    revealHostAnswer(correctChoice);
-  }
-
-  broadcastLeaderboard();
-}
-
-function broadcastLeaderboard() {
-  const formattedScores = Object.values(connectedPlayers).map(p => {
-    const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
-    return { name: p.name, section: p.section, total: total, scores: p.scores };
-  }).sort((a, b) => b.total - a.total);
-
-  updateScoreboardUI(formattedScores);
-
-  broadcastPayload({
-    type: "LEADERBOARD_UPDATE",
-    scores: formattedScores
-  });
-}
-
-function broadcastPayload(payload) {
-  Object.keys(connectedPlayers).forEach(id => {
-    connectedPlayers[id].conn.send(payload);
-  });
-}
-
 function updatePlayerListUI() {
   const listEl = document.getElementById("player-list");
   if (!listEl) return;
-  listEl.innerHTML = Object.values(connectedPlayers)
+  listEl.innerHTML = Object.values(playerRegistry)
     .map(p => `<li><strong>${p.name}</strong> (${p.section})</li>`).join("");
 }
 
 function updateScoreboardUI(scores) {
   const boardEl = document.getElementById("scoreboard-display");
   if (!boardEl) return;
-  
-  const scoreData = scores || Object.values(connectedPlayers).map(p => ({
-    name: p.name, section: p.section,
-    total: (p.scores.EASY||0) + (p.scores.MODERATE||0) + (p.scores.DIFFICULT||0),
-    scores: p.scores
-  }));
 
-  boardEl.innerHTML = scoreData
+  boardEl.innerHTML = scores
     .map(p => `<p><strong>${p.name}</strong> (${p.section}) — Easy: ${p.scores.EASY} | Mod: ${p.scores.MODERATE} | Diff: ${p.scores.DIFFICULT} | <strong>Total: ${p.total}</strong></p>`)
     .join("");
 }
@@ -267,7 +261,7 @@ function updateScoreboardUI(scores) {
 function exportScoresCSV() {
   let csvContent = "data:text/csv;charset=utf-8,Player Name,Section,Easy,Moderate,Difficult,Total Score\n";
 
-  Object.values(connectedPlayers).forEach(p => {
+  Object.values(playerRegistry).forEach(p => {
     const total = (p.scores.EASY || 0) + (p.scores.MODERATE || 0) + (p.scores.DIFFICULT || 0);
     csvContent += `"${p.name}","${p.section}",${p.scores.EASY},${p.scores.MODERATE},${p.scores.DIFFICULT},${total}\n`;
   });
