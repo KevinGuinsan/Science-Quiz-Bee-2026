@@ -96,6 +96,7 @@
 
   <script src="questions.js"></script>
   <script>
+    // Host Room Code setup
     let roomCode = localStorage.getItem('qb_host_room');
     if (!roomCode) {
       roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -105,12 +106,11 @@
 
     let currentSetKey = localStorage.getItem('qb_host_set') || 1;
     let selectedIndex = parseInt(localStorage.getItem('qb_host_qindex')) || 0;
-    
-    // Persistent Host Score Registry mapped by Player UUIDs
     let connectedPlayers = JSON.parse(localStorage.getItem('qb_host_players')) || {};
-    
     let currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
+    
     let timerInterval = null;
+    let activeEndTime = null;
 
     document.getElementById('set-select').value = currentSetKey;
 
@@ -127,7 +127,6 @@
 
       if (msg.type === 'PLAYER_JOIN') {
         const pid = msg.player.uuid;
-        // Preserves previous score if player rejoins after a refresh
         const existingScore = connectedPlayers[pid] ? connectedPlayers[pid].score : 0;
 
         connectedPlayers[pid] = {
@@ -140,7 +139,7 @@
         localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
         updateLeaderboardUI();
         
-        // Sync current question back to rejoining player
+        // Push active state directly to newly joined player
         dispatchCurrentQuestion();
       } else if (msg.type === 'SUBMIT_ANSWER') {
         const q = currentQuestions[selectedIndex];
@@ -229,6 +228,7 @@
 
     function renderQuestion(index) {
       clearInterval(timerInterval);
+      activeEndTime = null;
       const q = currentQuestions[index];
       if (!q) return;
 
@@ -266,7 +266,7 @@
       if (!q) return;
 
       const durationMs = (q.timer || 15) * 1000;
-      const endTime = Date.now() + durationMs;
+      activeEndTime = Date.now() + durationMs;
 
       const textInput = optionsContainer.querySelector('input');
       if (textInput) textInput.disabled = false;
@@ -274,13 +274,13 @@
       channel.postMessage({
         type: 'START_TIMER',
         question: q,
-        endTime: endTime,
+        endTime: activeEndTime,
         duration: q.timer || 15
       });
 
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        const remaining = Math.max(0, endTime - Date.now());
+        const remaining = Math.max(0, activeEndTime - Date.now());
         timerDisplay.textContent = `${(remaining / 1000).toFixed(2)}s`;
 
         if (remaining <= 0) {
