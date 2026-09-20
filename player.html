@@ -16,23 +16,22 @@
     .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer; background: #0066ff; color: white; transition: background 0.2s ease; }
     .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
     .badge { background-color: #3498db; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; float: right; }
-    .options-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-    .option-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 1rem; text-align: left; cursor: pointer; }
-    .option-btn:hover:not([disabled]) { border-color: #0066ff; background: #f0f7fc; }
-    .timer-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 15px; }
-    .timer-progress { height: 100%; background: #e67e22; width: 100%; transition: width 1s linear; }
+    .timer-box { font-size: 1.8rem; font-weight: bold; color: #e74c3c; font-family: monospace; text-align: center; margin: 15px 0 5px 0; }
+    .options-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    .option-btn { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-size: 1rem; text-align: left; cursor: not-allowed; opacity: 0.6; }
+    .option-btn.active { cursor: pointer; opacity: 1; }
+    .option-btn.active:hover { border-color: #0066ff; background: #f0f7fc; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <!-- View 1: Onboarding / Join Screen -->
     <div id="join-screen">
       <h1>Join Quiz Bee Room</h1>
       <form id="join-form">
         <div class="form-group">
           <label>ROOM CODE</label>
-          <input type="text" id="room-input" placeholder="e.g. 51WJ" maxlength="6" required style="text-transform: uppercase; font-weight: bold; letter-spacing: 2px;">
+          <input type="text" id="room-input" placeholder="e.g. ABCD" maxlength="6" required style="text-transform: uppercase; font-weight: bold; letter-spacing: 2px;">
         </div>
         <div class="form-group">
           <label>FULL NAME</label>
@@ -46,34 +45,31 @@
       </form>
     </div>
 
-    <!-- View 2: Active Question View -->
     <div id="game-screen" style="display: none;">
       <header style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
         <span id="player-tag" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">Player</span>
         <span id="round-tag" class="badge">EASY</span>
       </header>
 
-      <div id="question-box" style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 15px;">
-        Waiting for host to start timer...
+      <div id="question-box" style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 10px;">
+        Waiting for host to select question...
       </div>
+
+      <div id="timer-display" class="timer-box">--.--s</div>
 
       <div id="input-container" class="options-grid"></div>
-
-      <div class="timer-bar">
-        <div id="timer-progress" class="timer-progress"></div>
-      </div>
     </div>
   </div>
 
   <script>
-    // Persistent UUID Management
+    // Persistent UUID binding across refreshes
     let playerUuid = localStorage.getItem('qb_pid');
     if (!playerUuid) {
       playerUuid = 'pid_' + Math.random().toString(36).substring(2, 9);
       localStorage.setItem('qb_pid', playerUuid);
     }
 
-    // Read URL Parameters from QR Code Scan
+    let timerInterval = null;
     const urlParams = new URLSearchParams(window.location.search);
     const roomFromUrl = urlParams.get('room');
 
@@ -84,13 +80,29 @@
     const joinScreen = document.getElementById('join-screen');
     const gameScreen = document.getElementById('game-screen');
     const questionBox = document.getElementById('question-box');
+    const timerDisplay = document.getElementById('timer-display');
     const inputContainer = document.getElementById('input-container');
 
-    // Automatically fill and lock Room Code if joining via QR
     if (roomFromUrl) {
       roomInput.value = roomFromUrl.toUpperCase();
       roomInput.readOnly = true;
       roomInput.style.backgroundColor = '#f1f5f9';
+    }
+
+    // Auto-restore student session and re-join room using persistent UUID
+    const savedInfo = localStorage.getItem('qb_player_info');
+    if (savedInfo) {
+      const playerData = JSON.parse(savedInfo);
+      playerData.uuid = playerUuid; // Ensure exact same UUID is sent
+      roomInput.value = playerData.room;
+      nameInput.value = playerData.name;
+      sectionInput.value = playerData.section;
+      
+      joinScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+      document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
+
+      initPlayerSync(playerData);
     }
 
     joinForm.addEventListener('submit', (e) => {
@@ -103,36 +115,38 @@
         section: sectionInput.value.trim()
       };
 
-      // Store player identity
       localStorage.setItem('qb_player_info', JSON.stringify(playerData));
 
-      // Transition to game view
       joinScreen.style.display = 'none';
       gameScreen.style.display = 'block';
       document.getElementById('player-tag').textContent = `${playerData.name} (${playerData.section})`;
 
-      // Connect to local BroadcastChannel/State engine
       initPlayerSync(playerData);
     });
 
     function initPlayerSync(player) {
-      const channel = new BroadcastChannel(`quiz_bee_${player.room}`);
+      const channel = new BroadcastChannel(`qb_channel_${player.room}`);
 
-      // Register presence with host
+      // Transmit join payload containing persistent UUID
       channel.postMessage({ type: 'PLAYER_JOIN', player: player });
 
       channel.onmessage = (event) => {
         const msg = event.data;
 
         if (msg.type === 'QUESTION_DISPATCH') {
+          clearInterval(timerInterval);
           renderQuestion(msg.question);
+          timerDisplay.textContent = `${(msg.question.timer || 15).toFixed(2)}s`;
         } else if (msg.type === 'START_TIMER') {
-          enableAnswering(msg.question, msg.duration);
+          renderQuestion(msg.question);
+          startPlayerCountdown(msg.endTime);
         }
       };
     }
 
     function renderQuestion(q) {
+      if (!q) return;
+      
       document.getElementById('round-tag').textContent = q.round ? q.round.replace(" Round", "") : "QUESTION";
       questionBox.textContent = q.question;
       inputContainer.innerHTML = '';
@@ -142,7 +156,7 @@
           const btn = document.createElement('button');
           btn.className = 'option-btn';
           btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
-          btn.disabled = true; // Disabled until host clicks Start Timer
+          btn.disabled = true;
           inputContainer.appendChild(btn);
         });
       } else if (q.type === 'text' || !q.options) {
@@ -163,7 +177,7 @@
       }
     }
 
-    function enableAnswering(q, durationSeconds) {
+    function startPlayerCountdown(endTime) {
       const optionBtns = inputContainer.querySelectorAll('.option-btn');
       const textInput = document.getElementById('typed-answer');
       const submitBtn = inputContainer.querySelector('.btn');
@@ -171,6 +185,7 @@
       if (optionBtns.length > 0) {
         optionBtns.forEach((btn, idx) => {
           btn.disabled = false;
+          btn.classList.add('active');
           btn.onclick = () => {
             optionBtns.forEach(b => b.style.border = '1px solid #cbd5e1');
             btn.style.border = '2px solid #0066ff';
@@ -188,11 +203,29 @@
           textInput.disabled = true;
         };
       }
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const remaining = Math.max(0, endTime - Date.now());
+        timerDisplay.textContent = `${(remaining / 1000).toFixed(2)}s`;
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          timerDisplay.textContent = "0.00s (TIME'S UP)";
+          
+          optionBtns.forEach(b => {
+            b.disabled = true;
+            b.classList.remove('active');
+          });
+          if (textInput) textInput.disabled = true;
+          if (submitBtn) submitBtn.disabled = true;
+        }
+      }, 30);
     }
 
     function submitResponse(answer) {
       const playerInfo = JSON.parse(localStorage.getItem('qb_player_info'));
-      const channel = new BroadcastChannel(`quiz_bee_${playerInfo.room}`);
+      const channel = new BroadcastChannel(`qb_channel_${playerInfo.room}`);
       channel.postMessage({
         type: 'SUBMIT_ANSWER',
         uuid: playerUuid,
