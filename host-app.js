@@ -158,7 +158,7 @@ function gradeCurrentQuestion() {
     }
   });
 
-  // Reveal correct/incorrect answers to players & host
+  // Reveal correct answer to both host and players
   broadcastPayload({ type: "REVEAL_ANSWER", correctAnswer: correctChoice });
   
   if (typeof revealHostAnswer === "function") {
