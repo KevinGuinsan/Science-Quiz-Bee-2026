@@ -105,7 +105,6 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
-    // Generate or retrieve unique persistent playerId
     let playerId = localStorage.getItem("qb_pid");
     if (!playerId) {
       playerId = 'pid_' + Math.random().toString(36).substring(2, 11);
@@ -114,32 +113,61 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const roomFromUrl = urlParams.get("room") || urlParams.get("code");
+      const roomFromUrl = (urlParams.get("room") || urlParams.get("code") || "").trim().toUpperCase();
       
       const savedName = localStorage.getItem("qb_name");
       const savedSection = localStorage.getItem("qb_section");
-      const savedRoom = localStorage.getItem("qb_room") || roomFromUrl;
+      const savedRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
       const isJoined = localStorage.getItem("qb_joined") === "true";
 
       if (savedName) document.getElementById("playerNameInput").value = savedName;
       if (savedSection) document.getElementById("playerSectionInput").value = savedSection;
 
+      // CHECK IF SCANNED QR IS DIFFERENT FROM PREVIOUS ROOM SESSION
+      if (roomFromUrl && roomFromUrl !== savedRoom) {
+        // PURGE OLD SESSION COMPLETELY
+        clearSessionState();
+        
+        const roomInput = document.getElementById("roomCodeInput");
+        roomInput.value = roomFromUrl;
+        roomInput.disabled = true;
+
+        document.getElementById("join-screen").style.display = "block";
+        document.getElementById("game-screen").style.display = "none";
+        return;
+      }
+
       if (savedRoom) {
         const roomInput = document.getElementById("roomCodeInput");
-        roomInput.value = savedRoom.trim().toUpperCase();
+        roomInput.value = savedRoom;
         if (roomFromUrl) roomInput.disabled = true;
       }
 
-      // 1. INSTANT VIEW RESTORATION ON REFRESH (Skips Join Screen completely)
+      // Reconnect ONLY if staying in the same room code
       if (isJoined && savedName && savedSection && savedRoom) {
         document.getElementById("join-screen").style.display = "none";
         document.getElementById("game-screen").style.display = "block";
         document.getElementById("player-tag").textContent = `${savedName} (${savedSection})`;
 
         restoreCachedGameState();
-        connectToHost(true); // Quiet background WebRTC reconnect
+        connectToHost(true);
       }
     });
+
+    function clearSessionState() {
+      localStorage.removeItem("qb_joined");
+      localStorage.removeItem("qb_room");
+      localStorage.removeItem("qb_question");
+      localStorage.removeItem("qb_category");
+      localStorage.removeItem("qb_options");
+      localStorage.removeItem("qb_qindex");
+      localStorage.removeItem("qb_timer_active");
+      localStorage.removeItem("qb_selected_choice");
+      if (conn) {
+        try { conn.close(); } catch(e) {}
+        conn = null;
+      }
+    }
 
     function restoreCachedGameState() {
       const cachedQ = localStorage.getItem("qb_question");
@@ -186,8 +214,15 @@
           } catch(e) {}
         }
         if (scannedCode) {
+          const formattedCode = scannedCode.trim().toUpperCase();
+          const currentRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
+
+          if (formattedCode !== currentRoom) {
+            clearSessionState();
+          }
+
           const roomInput = document.getElementById("roomCodeInput");
-          roomInput.value = scannedCode.trim().toUpperCase();
+          roomInput.value = formattedCode;
           roomInput.disabled = true;
           closeQRScanner();
         }
@@ -210,6 +245,11 @@
       if (!section) return alert("Please enter your section.");
       if (!code) return alert("Please enter a valid room code.");
 
+      const savedRoom = (localStorage.getItem("qb_room") || "").trim().toUpperCase();
+      if (savedRoom && savedRoom !== code) {
+        clearSessionState();
+      }
+
       localStorage.setItem("qb_name", name);
       localStorage.setItem("qb_section", section);
       localStorage.setItem("qb_room", code);
@@ -220,9 +260,8 @@
       peer.on('open', (id) => {
         const hostPeerId = `quizbee-room-${code}`;
         
-        // Pass persistent playerId to preserve accumulated scores on host
         conn = peer.connect(hostPeerId, { 
-          metadata: { name: name, section: section, playerId: playerId } 
+          metadata: { name: name, section: section, playerId: playerId, roomCode: code } 
         });
 
         conn.on('open', () => {
@@ -230,7 +269,6 @@
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
 
-          // Request state sync from host upon reconnect
           conn.send({ type: "REQUEST_STATE_SYNC" });
         });
 
@@ -246,7 +284,7 @@
 
       peer.on('error', (err) => {
         if (!isSilentReconnect) {
-          localStorage.removeItem("qb_joined");
+          clearSessionState();
           document.getElementById("join-screen").style.display = "block";
           document.getElementById("game-screen").style.display = "none";
           alert("Could not connect to host. Check the Room Code and try again.");
@@ -262,7 +300,6 @@
         isTimeUp = false;
         selectedOptionIndex = null;
         
-        // Save current question state for refresh survival
         localStorage.setItem("qb_question", payload.question);
         localStorage.setItem("qb_category", payload.category);
         localStorage.setItem("qb_options", JSON.stringify(payload.options));
