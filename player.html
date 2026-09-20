@@ -105,7 +105,7 @@
     let isTimeUp = false;
     let selectedOptionIndex = null;
 
-    // Auto-reconnect & auto-fill credentials on page refresh or QR link opening
+    // Auto-reconnect & credential recovery on page load/refresh
     window.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomFromUrl = urlParams.get("room") || urlParams.get("code");
@@ -178,7 +178,7 @@
         conn = peer.connect(hostPeerId, { metadata: { name: name, section: section } });
 
         conn.on('open', () => {
-          // Bypasses join screen permanently on connection
+          // Permanently hide join card on active connection
           document.getElementById("join-screen").style.display = "none";
           document.getElementById("game-screen").style.display = "block";
           document.getElementById("player-tag").textContent = `${name} (${section})`;
@@ -197,7 +197,6 @@
       });
 
       peer.on('error', (err) => {
-        // Clear saved room if connection fails
         localStorage.removeItem("qb_room");
         document.getElementById("join-screen").style.display = "block";
         document.getElementById("game-screen").style.display = "none";
@@ -221,12 +220,12 @@
         badge.textContent = payload.category;
         badge.className = `badge badge-${payload.category}`;
 
-        // Options render disabled until host starts the timer
+        // Options render disabled until host clicks "Start Timer"
         renderOptions(payload.options, true);
       } else if (payload.type === "TIMER_STARTED") {
         isTimerActive = true;
         isTimeUp = false;
-        enableAllOptions(); // Unlock options when host clicks timer
+        enableAllOptions(); // Unlocks choices when host starts timer
         statusEl.className = "";
         statusEl.textContent = "⏱️ Timer Started! Select your answer.";
       } else if (payload.type === "TIMER_SYNC") {
@@ -253,7 +252,7 @@
         const btn = document.createElement("button");
         btn.className = "btn-option";
         btn.id = `opt-btn-${index}`;
-        btn.disabled = startDisabled; // Locked by default until timer starts
+        btn.disabled = startDisabled;
         btn.textContent = `${String.fromCharCode(65 + index)}. ${optText}`;
         btn.onclick = () => submitAnswer(index);
         container.appendChild(btn);
