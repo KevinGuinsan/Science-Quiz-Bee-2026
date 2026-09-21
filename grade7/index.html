@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Science 7 Quiz Bee Host</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
@@ -37,7 +38,6 @@
 <body>
 
   <div class="layout-grid">
-    <!-- Sidebar: Room Info, QR Code & Live Standings -->
     <div class="card">
       <h1>Quiz Bee Room</h1>
       <div id="room-code-display" class="room-box">CODE: ----</div>
@@ -57,11 +57,9 @@
         </tbody>
       </table>
 
-      <!-- Export CSV Button -->
       <button id="export-csv-btn" class="btn btn-export">📥 Export Scores (CSV)</button>
     </div>
 
-    <!-- Main Game Display -->
     <div class="card">
       <header style="display:flex; justify-content: space-between; align-items:center; border-bottom:2px solid #eef2f5; padding-bottom:10px; margin-bottom:15px;">
         <h2>Science 7 Host View</h2>
@@ -86,15 +84,12 @@
   <script type="module">
     import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
 
-    // State Variables
     let currentIndex = 0;
     let timerInterval = null;
     let roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    
-    // Host-Side Score Registry (Mapped to persistent player IDs)
     let players = {};
+    let phoneConnections = [];
 
-    // UI Elements
     const roomCodeEl = document.getElementById('room-code-display');
     const qrContainer = document.getElementById('qrcode');
     const questionTextEl = document.getElementById('question-text');
@@ -107,12 +102,63 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room & QR Code (Uses relative path to avoid GitHub Pages 404 subfolder errors)
+    // 1. Initialize QR Code and Realtime Channel Connections
     roomCodeEl.textContent = `CODE: ${roomCode}`;
     const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
 
-    // 2. Render Question UI
+    const channel = new BroadcastChannel(`qb_channel_${roomCode}`);
+    channel.onmessage = (e) => handleIncomingMessage(e.data);
+
+    const peer = new Peer(`qb_host_${roomCode}`);
+    peer.on('connection', (conn) => {
+      phoneConnections.push(conn);
+      conn.on('data', (data) => handleIncomingMessage(data));
+      conn.on('open', () => dispatchCurrentQuestion());
+    });
+
+    function broadcastPayload(payload) {
+      channel.postMessage(payload);
+      phoneConnections.forEach(conn => {
+        if (conn.open) conn.send(payload);
+      });
+    }
+
+    function handleIncomingMessage(msg) {
+      if (msg.type === 'PLAYER_JOIN') {
+        const pid = msg.player.uuid;
+        players[pid] = {
+          uuid: pid,
+          name: msg.player.name,
+          section: msg.player.section,
+          score: players[pid] ? players[pid].score : 0
+        };
+        updateLeaderboardUI();
+        dispatchCurrentQuestion(); // Resend current question so new student gets it immediately
+      }
+    }
+
+    // Helper to send question object over the network to student phones
+    function dispatchCurrentQuestion() {
+      const qData = getSanitizedQuestionForClient(currentIndex);
+      if (!qData) return;
+
+      const clientPayload = {
+        question: qData.question,
+        options: qData.options || null,
+        type: qData.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
+        timer: qData.timeLimit || 10,
+        round: qData.category || 'EASY'
+      };
+
+      broadcastPayload({
+        type: 'QUESTION_DISPATCH',
+        question: clientPayload,
+        leaderboard: players
+      });
+    }
+
+    // 2. Render Question UI and Broadcast to Mobile Devices
     function renderQuestion(index) {
       clearInterval(timerInterval);
       const qData = getSanitizedQuestionForClient(index);
@@ -138,6 +184,9 @@
         input.style.cssText = 'width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;';
         optionsContainerEl.appendChild(input);
       }
+
+      // Sync question to student screen instantly
+      dispatchCurrentQuestion();
     }
 
     // 3. Start Timer Trigger Functionality
@@ -146,12 +195,26 @@
       const durationMs = qData.timeLimit * 1000;
       const endTime = Date.now() + durationMs;
 
-      // Enable UI Options
       document.querySelectorAll('.option-btn').forEach(btn => btn.classList.add('active'));
       const textInput = optionsContainerEl.querySelector('input');
       if (textInput) textInput.disabled = false;
 
-      // High-Frequency 30ms Loop Calculation
+      // Broadcast timer start event to students
+      const clientPayload = {
+        question: qData.question,
+        options: qData.options || null,
+        type: qData.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
+        timer: qData.timeLimit || 10,
+        round: qData.category || 'EASY'
+      };
+
+      broadcastPayload({
+        type: 'START_TIMER',
+        question: clientPayload,
+        endTime: endTime,
+        duration: qData.timeLimit
+      });
+
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         const remaining = Math.max(0, endTime - Date.now());
@@ -160,7 +223,6 @@
         if (remaining <= 0) {
           clearInterval(timerInterval);
           timerDisplayEl.textContent = "0.00s (TIME'S UP)";
-          // Disable Options
           document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active'));
           if (textInput) textInput.disabled = true;
         }
