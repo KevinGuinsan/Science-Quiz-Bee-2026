@@ -62,6 +62,7 @@ function setInfo() {
 $('set').onchange = setInfo;
 const requestedGrade = new URLSearchParams(location.search).get('grade');
 if (requestedGrade === '11') $('set').value = 'g11-1';
+$('setup-title').textContent = requestedGrade === '11' ? 'Grade 11 Science Quiz Bee Controller' : requestedGrade === '7' ? 'Science 7 Quiz Bee Host' : 'Science Quiz Bee Host Controller';
 setInfo(); showSetup();
 $('create-form').onsubmit = event => {
   event.preventDefault();
@@ -100,6 +101,10 @@ function render() {
   $('setup').hidden = true; $('workspace').hidden = false; $('project').hidden = false;
   $('session-title').textContent = session.name; $('session-set').textContent = session.set;
   const setup = session.status === 'setup'; const finished = session.status === 'finished';
+  $('controller-title').textContent = session.set.startsWith('Grade 11') ? 'Grade 11 Science Quiz Bee Controller' : 'Science 7 Quiz Bee Host';
+  $('roster-hint').hidden = !setup;
+  $('round-counts').replaceChildren(...[['EASY', '🟢 Easy'], ['MODERATE', '🟡 Moderate'], ['DIFFICULT', '🔴 Difficult']].map(([category, label]) =>
+    element('span', `${label}: ${session.questions.filter(q => q.category === category).length}`)));
   $('roster-panel').hidden = !setup;
   $('question-panel').hidden = setup || finished;
   $('navigation').hidden = setup || finished;
@@ -120,6 +125,7 @@ function render() {
 function renderQuestion() {
   const q = question(); const revealed = !!session.revealed[q.id];
   $('round').textContent = `${q.category} · ${q.points} ${q.points === 1 ? 'POINT' : 'POINTS'}`;
+  $('round').className = 'badge ' + q.category.toLowerCase();
   $('progress').textContent = `${session.index + 1} / ${session.questions.length}`;
   $('question-number').textContent = `QUESTION ${String(session.index + 1).padStart(2, '0')}`;
   $('question-text').textContent = q.question;
@@ -141,7 +147,7 @@ function renderTimer() {
   const remaining = running ? Math.max(0, t.end - Date.now()) : (t?.remaining ?? q.seconds * 1000);
   $('timer').textContent = revealed ? 'Checking' : (remaining <= 0 ? "Time’s up" : (remaining / 1000).toFixed(1) + 's');
   $('start-timer').disabled = revealed || running || remaining <= 0;
-  $('start-timer').textContent = t && !running ? 'Resume timer' : 'Start timer';
+  $('start-timer').textContent = t && !running ? '⏱️ Resume Timer' : '⏱️ Start Timer';
   $('pause-timer').hidden = !running || revealed;
   $('paper-hint').textContent = revealed ? 'Check the papers and record points below.' : running ? 'Answer on paper. Pencils down when time is up.' : remaining <= 0 ? 'Pencils down. The host will reveal the answer.' : t ? 'Timer paused. Wait for the host.' : 'Write your answer on paper. Wait for the host to start the timer.';
 }
@@ -199,7 +205,7 @@ $('zero-remaining').onclick = () => {
 };
 function renderBoard() {
   $('participant-count').textContent = session.participants.length;
-  $('board-title').textContent = session.status === 'finished' ? 'Final leaderboard' : 'Session leaderboard';
+  $('board-title').textContent = session.status === 'finished' ? '🏆 Final Leaderboard' : '🏆 Session Leaderboard';
   const marked = session.questions.filter(q => isScored(session, q.id)).length;
   $('board-note').textContent = `${marked} of ${session.questions.length} questions fully scored · Ties share a rank.`;
   const rows = standings(session).map(p => {
@@ -212,6 +218,13 @@ function renderBoard() {
 }
 function renderNavigation() {
   const scored = isScored(session, question().id);
+  $('nav-buttons').replaceChildren(...session.questions.map((q, i) => {
+    const nav = button(`Q${i + 1} (${q.category[0]})`, () => navigate(i), i === session.index ? 'active' : '');
+    nav.disabled = !scored && i !== session.index;
+    nav.setAttribute('aria-label', `Question ${i + 1}, ${q.category}${isScored(session, q.id) ? ', scored' : ''}`);
+    if (i === session.index) nav.setAttribute('aria-current', 'step');
+    return nav;
+  }));
   $('previous').disabled = !scored || session.index === 0;
   $('next').disabled = !scored || session.index === session.questions.length - 1;
   $('finish').disabled = !scored;

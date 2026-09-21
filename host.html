@@ -2,53 +2,65 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Science Quiz Bee • Paper Quiz Host</title>
+<title>Science Quiz Bee Host Controller</title>
 <link rel="stylesheet" href="host.css">
 <script type="module" src="host-app.js"></script>
 </head>
 <body>
-<header class="topbar"><a class="brand" href="index.html">SCIENCE <span>QUIZ BEE / 2026</span></a><div class="actions"><span class="pill">PAPER ANSWERS</span><button id="project" class="secondary" hidden>Projector view</button></div></header>
 <main>
-<div class="intro"><div><p class="eyebrow">THE HOST DESK</p><h1>One screen. Everyone plays.</h1><p class="muted">Read the question. Answer on paper. Let the host keep score.</p></div><p id="save-status" class="muted" role="status">Sessions save in this browser.</p></div>
 <p id="notice" role="alert" hidden></p>
-<section id="setup" class="card">
-<div class="section-heading"><div><p class="eyebrow">01 / GET READY</p><h2>Set up your session</h2></div></div>
+<section id="setup" class="card setup-card">
+<h1 id="setup-title">Science Quiz Bee Host Controller</h1>
+<p class="muted">Create a session, add participants, and record their paper-answer scores.</p>
 <form id="create-form" class="form-grid">
-<label>Session name<input id="session-name" required maxlength="80" placeholder="e.g. Grade 11 · Final round"></label>
-<label>Question set<select id="set"><option value="g7">Grade 7 · Set A</option><option value="g11-1">Grade 11 · Set A</option><option value="g11-2">Grade 11 · Set B</option><option value="g11-3">Grade 11 · Set C</option></select></label>
+<label>Session name<input id="session-name" required maxlength="80" placeholder="e.g. Grade 11 Finals"></label>
+<label>Active Question Set:<select id="set"><option value="g7">Grade 7 · Set A</option><option value="g11-1">Grade 11 · Set A</option><option value="g11-2">Grade 11 · Set B</option><option value="g11-3">Grade 11 · Set C</option></select></label>
 <button type="submit">Create session</button>
 </form>
 <p id="set-info" class="muted"></p>
 <div id="saved-wrap" hidden><label>Saved sessions<select id="saved-sessions"></select></label><button id="resume" class="secondary">Open saved session</button></div>
+<p><a href="index.html">← Back to Portal</a></p>
 </section>
-<div id="workspace" hidden>
-<div class="session-strip"><div><p class="eyebrow" id="session-set"></p><h2 id="session-title"></h2></div><div class="actions host-only"><button id="export" class="secondary">Export scores CSV</button><button id="sessions" class="secondary">Sessions / new quiz</button></div></div>
-<section id="roster-panel" class="card host-only">
-<p class="eyebrow">02 / WHO'S PLAYING?</p><h2>Add participants or teams</h2><p class="muted">Add everyone before starting. Names appear on the shared leaderboard.</p>
-<form id="add-form" class="form-grid"><label>Name<input id="participant-name" required maxlength="80" autocomplete="off"></label><label>Section / team (optional)<input id="participant-section" maxlength="60" autocomplete="off"></label><button type="submit">Add participant</button></form>
+<div id="workspace" class="layout-grid" hidden>
+<aside class="card sidebar">
+<h2 class="session-label">QUIZ BEE SESSION</h2><div id="session-title" class="room-box"></div>
+<section id="roster-panel" class="host-only">
+<h2>Add Participants</h2><p class="muted">Add everyone before starting. Participants answer on paper.</p>
+<form id="add-form"><label>Name<input id="participant-name" required maxlength="80" autocomplete="off"></label><label>Section / team (optional)<input id="participant-section" maxlength="60" autocomplete="off"></label><button type="submit">Add participant</button></form>
 <ul id="roster"></ul><button id="begin">Start session</button>
 </section>
-<div class="quiz-layout">
-<div>
-<section id="question-panel" class="card" hidden>
-<div class="section-heading"><span class="pill" id="round"></span><span class="muted" id="progress"></span></div>
-<div class="question-header"><p class="eyebrow" id="question-number"></p><div id="timer" role="timer" aria-label="Time remaining"></div></div>
+<div class="board-heading"><h3 id="board-title">🏆 Session Leaderboard</h3><span id="participant-count">0</span></div>
+<p class="muted" id="board-note">Scores start at zero for each session. Ties share a rank.</p>
+<div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Participant</th><th scope="col">Score</th></tr></thead><tbody id="leaderboard"></tbody></table></div>
+<button id="export" class="host-only export-button">📥 Export Scores (CSV)</button>
+<div class="sidebar-links host-only"><button id="sessions" class="secondary">Sessions / new quiz</button><a href="index.html">← Back to Portal</a></div>
+</aside>
+<div class="card controller">
+<h1 id="controller-title">Science Quiz Bee Controller</h1>
+<div class="set-summary"><b>Active Question Set:</b><p id="session-set"></p></div>
+<div id="round-counts" class="counters"></div>
+<p id="roster-hint" class="muted">Add participants on the left, then click Start session.</p>
+<section id="question-panel" hidden>
+<div class="question-card">
+<div class="question-header"><div><span id="question-number"></span><span id="progress"></span></div><span class="badge" id="round"></span></div>
 <h2 id="question-text"></h2><div id="options"></div>
 <p id="paper-hint" class="muted">Write your answer on paper. Wait for the host to start the timer.</p>
-<div id="answer" hidden><span class="eyebrow">CORRECT ANSWER</span><p id="answer-text"></p></div>
-<div class="actions host-only question-actions"><button id="start-timer">Start timer</button><button id="pause-timer" class="secondary" hidden>Pause timer</button><button id="reveal" class="secondary">Reveal answer & score</button></div>
+<div id="answer" hidden><strong>Correct answer:</strong><p id="answer-text"></p></div>
+</div>
+<div class="host-only question-picker"><p><b>Select a question:</b></p><div id="nav-buttons" class="nav-grid"></div></div>
+<div class="controls"><button id="start-timer" class="host-only timer-button">⏱️ Start Timer</button><button id="pause-timer" class="secondary host-only" hidden>Pause timer</button><div id="timer" role="timer" aria-label="Time remaining"></div></div>
+<div class="actions host-only"><button id="reveal" class="secondary">Reveal answer & score</button></div>
 </section>
-<section id="scoring-panel" class="card host-only" hidden>
-<div class="section-heading"><div><p class="eyebrow">03 / CHECK THE PAPERS</p><h2>Score this question</h2></div><span id="scored-count" class="pill"></span></div>
-<p class="muted">Choose Correct or 0, or enter partial points. Each entry updates the leaderboard immediately. Editing replaces the previous score.</p>
+<section id="scoring-panel" class="host-only" hidden>
+<div class="section-heading"><h2>Score This Question</h2><span id="scored-count"></span></div>
+<p class="muted">Choose Correct or 0, or enter partial points. Editing replaces the previous score.</p>
 <button id="zero-remaining" class="secondary">Mark remaining as 0</button><div id="score-rows"></div>
 </section>
-<div id="navigation" class="card host-only" hidden><div class="actions"><button id="previous" class="secondary">Previous</button><button id="next">Next question</button><button id="finish" class="secondary">Finish session</button></div><label class="review-label">Review a question<select id="question-jump"></select></label><p id="navigation-hint" class="muted"></p></div>
-<section id="finished" class="card" hidden><p class="eyebrow">SESSION COMPLETE</p><h2>That's a wrap.</h2><p>Final standings are ready. Export the scores or review questions to correct a result.</p><button id="review" class="secondary host-only">Review / correct scores</button></section>
-</div>
-<aside class="card leaderboard"><div class="section-heading"><div><p class="eyebrow">LIVE STANDINGS</p><h2 id="board-title">Session leaderboard</h2></div><span id="participant-count" class="pill">0</span></div><p class="muted" id="board-note">Scores start at zero for each session. Ties share a rank.</p><div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Participant</th><th scope="col">Points</th></tr></thead><tbody id="leaderboard"></tbody></table></div></aside>
+<div id="navigation" class="host-only" hidden><div class="actions"><button id="previous" class="secondary">Previous</button><button id="next">Next question</button><button id="finish" class="secondary">Finish session</button></div><label class="review-label">Review a question<select id="question-jump"></select></label><p id="navigation-hint" class="muted"></p></div>
+<section id="finished" hidden><h2>Quiz Complete</h2><p>Final standings are ready. Export the scores or review questions to correct a result.</p><button id="review" class="secondary host-only">Review / correct scores</button></section>
+<div class="controller-footer"><span id="save-status" class="muted" role="status">Sessions save in this browser.</span><button id="project" class="secondary" hidden>Projector view</button></div>
 </div>
 </div>
 <noscript>Enable JavaScript to run the quiz host.</noscript>
-</main><footer>SCIENCE QUIZ BEE <span>Paper in hand. Curiosity on screen.</span></footer>
+</main>
 </body></html>
