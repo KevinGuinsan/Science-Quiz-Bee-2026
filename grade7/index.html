@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Science 7 Quiz Bee Host</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
@@ -33,8 +32,6 @@
     .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     .leaderboard-table th, .leaderboard-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.9rem; }
     .leaderboard-table th { background-color: #f8fafc; color: #64748b; }
-    .status-correct { color: #16a34a; font-weight: bold; }
-    .status-wrong { color: #dc2626; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -86,23 +83,16 @@
     </div>
   </div>
 
-  <script src="questions.js"></script>
-  <script>
+  <script type="module">
+    import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
+
     // State Variables
     let currentIndex = 0;
-    let timerAnimFrame = null;
-    let activeEndTime = null;
+    let timerInterval = null;
     let roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     
-    // Load Questions from rawQuestionBank or window.questions
-    let questionList = Array.isArray(window.rawQuestionBank) 
-      ? window.rawQuestionBank 
-      : (window.rawQuestionBank ? (window.rawQuestionBank[1] || Object.values(window.rawQuestionBank)[0]) : (window.questions || []));
-
+    // Host-Side Score Registry (Mapped to persistent player IDs)
     let players = {};
-    let submittedAnswers = {};
-    let playerResults = {};
-    let phoneConnections = [];
 
     // UI Elements
     const roomCodeEl = document.getElementById('room-code-display');
@@ -117,93 +107,30 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room Code, QR Code, and Realtime Sockets
+    // 1. Initialize Room & QR Code (Uses relative path to avoid GitHub Pages 404 subfolder errors)
     roomCodeEl.textContent = `CODE: ${roomCode}`;
     const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
 
-    const channel = new BroadcastChannel(`qb_channel_${roomCode}`);
-    channel.onmessage = (e) => handleIncomingMessage(e.data);
-
-    const peer = new Peer(`qb_host_${roomCode}`);
-    peer.on('connection', (conn) => {
-      phoneConnections.push(conn);
-      conn.on('data', (data) => handleIncomingMessage(data));
-      conn.on('open', () => dispatchCurrentQuestion());
-    });
-
-    function broadcastPayload(payload) {
-      channel.postMessage(payload);
-      phoneConnections.forEach(conn => {
-        if (conn.open) conn.send(payload);
-      });
-    }
-
-    function handleIncomingMessage(msg) {
-      if (msg.type === 'PLAYER_JOIN') {
-        const pid = msg.player.uuid;
-        players[pid] = {
-          uuid: pid,
-          name: msg.player.name,
-          section: msg.player.section,
-          score: players[pid] ? players[pid].score : 0,
-          categoryScores: players[pid] ? players[pid].categoryScores : {
-            "Easy Round": 0, "Moderate Round": 0, "Difficult Round": 0, "Clincher Round": 0
-          }
-        };
-        updateLeaderboardUI();
-        dispatchCurrentQuestion();
-      } else if (msg.type === 'SUBMIT_ANSWER') {
-        submittedAnswers[msg.uuid] = msg.answer;
-      }
-    }
-
-    // Broadcast current question to player screen
-    function dispatchCurrentQuestion() {
-      const qData = questionList[currentIndex];
-      if (!qData) return;
-
-      const clientQ = {
-        question: qData.question,
-        options: qData.options || null,
-        type: qData.type || (qData.options ? 'mc' : 'text'),
-        timer: qData.timer || qData.timeLimit || 15,
-        round: qData.round || qData.category || 'Easy Round'
-      };
-
-      broadcastPayload({
-        type: 'QUESTION_DISPATCH',
-        question: clientQ,
-        leaderboard: players
-      });
-    }
-
     // 2. Render Question UI
     function renderQuestion(index) {
-      if (timerAnimFrame) cancelAnimationFrame(timerAnimFrame);
-      submittedAnswers = {};
-      playerResults = {};
-      updateLeaderboardUI();
-
-      const qData = questionList[index];
+      clearInterval(timerInterval);
+      const qData = getSanitizedQuestionForClient(index);
       if (!qData) return;
 
-      const duration = qData.timer || qData.timeLimit || 15;
-      const category = qData.round || qData.category || "EASY";
-
-      categoryBadgeEl.textContent = `${category.replace(" Round", "").toUpperCase()} (${duration}s)`;
+      categoryBadgeEl.textContent = `${qData.category} (${qData.timeLimit}s)`;
       questionTextEl.textContent = `${index + 1}. ${qData.question}`;
-      timerDisplayEl.textContent = `${duration.toFixed(2)}s`;
+      timerDisplayEl.textContent = `${qData.timeLimit.toFixed(2)}s`;
       optionsContainerEl.innerHTML = '';
 
-      if (qData.options && qData.options.length > 0) {
-        qData.options.forEach((opt, i) => {
+      if (qData.type === 'MULTIPLE_CHOICE') {
+        qData.options.forEach((opt) => {
           const btn = document.createElement('button');
           btn.className = 'option-btn';
-          btn.textContent = `${String.fromCharCode(65 + i)}. ${opt}`;
+          btn.textContent = opt;
           optionsContainerEl.appendChild(btn);
         });
-      } else {
+      } else if (qData.type === 'IDENTIFICATION') {
         const input = document.createElement('input');
         input.type = 'text';
         input.disabled = true;
@@ -211,101 +138,36 @@
         input.style.cssText = 'width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;';
         optionsContainerEl.appendChild(input);
       }
-
-      dispatchCurrentQuestion();
     }
 
-    // 3. Evaluate Round Results
-    function evaluateRoundAnswers() {
-      const qData = questionList[currentIndex];
-      if (!qData) return;
-
-      playerResults = {};
-      const catKey = qData.round || qData.category || "Easy Round";
-
-      Object.keys(players).forEach(pid => {
-        const ans = submittedAnswers[pid];
-        let isCorrect = false;
-
-        if (ans !== undefined && ans !== null) {
-          if (qData.options) {
-            isCorrect = Number(ans) === Number(qData.answer);
-          } else {
-            isCorrect = String(ans).trim().toLowerCase() === String(qData.answer).trim().toLowerCase();
-          }
-        }
-
-        if (isCorrect) {
-          const pts = qData.points || 1;
-          players[pid].score += pts;
-          if (!players[pid].categoryScores[catKey]) players[pid].categoryScores[catKey] = 0;
-          players[pid].categoryScores[catKey] += pts;
-        }
-
-        playerResults[pid] = { isCorrect: isCorrect, submitted: ans };
-      });
-
-      updateLeaderboardUI();
-
-      broadcastPayload({
-        type: 'TIME_UP',
-        correctAnswer: qData.answer,
-        questionType: qData.options ? 'mc' : 'text',
-        leaderboard: players
-      });
-    }
-
-    // 4. Start Timer Trigger Functionality
+    // 3. Start Timer Trigger Functionality
     startTimerBtn.addEventListener('click', () => {
-      const qData = questionList[currentIndex];
-      if (!qData) return;
+      const qData = getSanitizedQuestionForClient(currentIndex);
+      const durationMs = qData.timeLimit * 1000;
+      const endTime = Date.now() + durationMs;
 
-      const duration = qData.timer || qData.timeLimit || 15;
-      const durationMs = duration * 1000;
-      activeEndTime = Date.now() + durationMs;
-      submittedAnswers = {};
-      playerResults = {};
-      updateLeaderboardUI();
-
+      // Enable UI Options
       document.querySelectorAll('.option-btn').forEach(btn => btn.classList.add('active'));
       const textInput = optionsContainerEl.querySelector('input');
       if (textInput) textInput.disabled = false;
 
-      const clientQ = {
-        question: qData.question,
-        options: qData.options || null,
-        type: qData.type || (qData.options ? 'mc' : 'text'),
-        timer: duration,
-        round: qData.round || qData.category || 'Easy Round'
-      };
-
-      broadcastPayload({
-        type: 'START_TIMER',
-        question: clientQ,
-        endTime: activeEndTime,
-        duration: duration
-      });
-
-      if (timerAnimFrame) cancelAnimationFrame(timerAnimFrame);
-
-      function updateHostTimer() {
-        const remaining = Math.max(0, activeEndTime - Date.now());
+      // High-Frequency 30ms Loop Calculation
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const remaining = Math.max(0, endTime - Date.now());
         timerDisplayEl.textContent = `${(remaining / 1000).toFixed(2)}s`;
 
-        if (remaining > 0) {
-          timerAnimFrame = requestAnimationFrame(updateHostTimer);
-        } else {
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
           timerDisplayEl.textContent = "0.00s (TIME'S UP)";
+          // Disable Options
           document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active'));
           if (textInput) textInput.disabled = true;
-          evaluateRoundAnswers();
         }
-      }
-
-      timerAnimFrame = requestAnimationFrame(updateHostTimer);
+      }, 30);
     });
 
-    // 5. Standings Render Helper
+    // 4. Standings Render Helper
     function updateLeaderboardUI() {
       const sorted = Object.values(players).sort((a, b) => b.score - a.score);
       leaderboardBody.innerHTML = '';
@@ -316,17 +178,13 @@
       }
 
       sorted.forEach(p => {
-        const resText = playerResults[p.uuid] 
-          ? (playerResults[p.uuid].isCorrect ? '<span class="status-correct">✓ Correct</span>' : '<span class="status-wrong">✗ Wrong</span>')
-          : '<span style="color:#94a3b8;">--</span>';
-
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td><b>${p.score} pts</b> ${resText}</td>`;
+        tr.innerHTML = `<td><b>${p.name}</b></td><td>${p.section}</td><td>${p.score} pts</td>`;
         leaderboardBody.appendChild(tr);
       });
     }
 
-    // 6. Export CSV Listener
+    // 5. Export CSV Listener
     exportCsvBtn.addEventListener('click', () => {
       const playerList = Object.values(players);
       if (playerList.length === 0) {
@@ -338,10 +196,10 @@
       csvContent += "Full Name,Section,Total Score,Easy Round,Moderate Round,Difficult Round,Clincher Round\n";
 
       playerList.forEach(p => {
-        const easy = p.categoryScores ? (p.categoryScores["Easy Round"] || p.categoryScores["Easy"] || 0) : 0;
-        const mod = p.categoryScores ? (p.categoryScores["Moderate Round"] || p.categoryScores["Moderate"] || 0) : 0;
-        const diff = p.categoryScores ? (p.categoryScores["Difficult Round"] || p.categoryScores["Difficult"] || 0) : 0;
-        const clincher = p.categoryScores ? (p.categoryScores["Clincher Round"] || p.categoryScores["Clincher"] || 0) : 0;
+        const easy = p.categoryScores ? (p.categoryScores["Easy"] || 0) : 0;
+        const mod = p.categoryScores ? (p.categoryScores["Moderate"] || 0) : 0;
+        const diff = p.categoryScores ? (p.categoryScores["Difficult"] || 0) : 0;
+        const clincher = p.categoryScores ? (p.categoryScores["Clincher"] || 0) : 0;
 
         csvContent += `"${p.name}","${p.section}",${p.score},${easy},${mod},${diff},${clincher}\n`;
       });
@@ -357,7 +215,7 @@
 
     // Navigation Listeners
     nextBtn.addEventListener('click', () => {
-      if (currentIndex < questionList.length - 1) {
+      if (currentIndex < questions.length - 1) {
         currentIndex++;
         renderQuestion(currentIndex);
       }
