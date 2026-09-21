@@ -112,7 +112,7 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room & Relative Path QR Code (Fixes 404 on GitHub Pages)
+    // 1. Initialize Room & Relative Path QR Code
     roomCodeEl.textContent = `CODE: ${roomCode}`;
     const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
@@ -154,7 +154,6 @@
       }
     }
 
-    // Formats payload so root player.html displays question correctly
     function dispatchCurrentQuestion() {
       const qData = getSanitizedQuestionForClient(currentIndex);
       if (!qData) return;
@@ -208,7 +207,7 @@
       dispatchCurrentQuestion();
     }
 
-    // 3. Evaluate Answers, Award Points & Mark Status
+    // 3. Evaluate Answers & Convert Correct Answer to Numeric Index for player.html
     function evaluateRoundAnswers() {
       const fullQ = questions[currentIndex];
       if (!fullQ) return;
@@ -241,14 +240,18 @@
 
       updateLeaderboardUI();
 
-      let correctPayload = fullQ.answer;
-      if (fullQ.type === 'MULTIPLE_CHOICE' && fullQ.options) {
-        correctPayload = fullQ.options.findIndex(opt => opt.trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase());
+      // IMPORTANT FIX: Convert answer to numeric index so player.html turns correct button GREEN
+      let correctIndex = fullQ.answer;
+      if (fullQ.type === 'MULTIPLE_CHOICE' && Array.isArray(fullQ.options)) {
+        correctIndex = fullQ.options.findIndex(opt => String(opt).trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase());
+        if (correctIndex === -1 && !isNaN(Number(fullQ.answer))) {
+          correctIndex = Number(fullQ.answer);
+        }
       }
 
       broadcastPayload({
         type: 'TIME_UP',
-        correctAnswer: correctPayload,
+        correctAnswer: correctIndex,
         questionType: fullQ.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
         leaderboard: players
       });
@@ -297,7 +300,7 @@
       }, 30);
     });
 
-    // 5. Standings Render Helper with Correct/Wrong Labels
+    // 5. Standings Render Helper
     function updateLeaderboardUI() {
       const sorted = Object.values(players).sort((a, b) => b.score - a.score);
       leaderboardBody.innerHTML = '';
@@ -318,7 +321,7 @@
       });
     }
 
-    // 6. Detailed CSV Export (Per-Question Columns + Category Totals)
+    // 6. CSV Export Listener
     exportCsvBtn.addEventListener('click', () => {
       const playerList = Object.values(players);
       if (playerList.length === 0) {
