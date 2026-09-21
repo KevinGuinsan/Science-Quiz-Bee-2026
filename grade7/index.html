@@ -57,7 +57,7 @@
         </tbody>
       </table>
 
-      <!-- Export CSV Button Added -->
+      <!-- Export CSV Button -->
       <button id="export-csv-btn" class="btn btn-export">📥 Export Scores (CSV)</button>
     </div>
 
@@ -107,9 +107,9 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room & QR Code
+    // 1. Initialize Room & QR Code (Fix: Relative URL path preserves repository subfolder on GitHub Pages)
     roomCodeEl.textContent = `CODE: ${roomCode}`;
-    const playerJoinUrl = `${window.location.origin}/player.html?room=${roomCode}`;
+    const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
 
     // 2. Render Question UI
@@ -184,7 +184,7 @@
       });
     }
 
-    // 5. Export CSV Listener Added
+    // 5. Export CSV Listener
     exportCsvBtn.addEventListener('click', () => {
       const playerList = Object.values(players);
       if (playerList.length === 0) {
