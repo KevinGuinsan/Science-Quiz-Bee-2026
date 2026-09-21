@@ -3,7 +3,7 @@
  * Grade 11 - Physical Science & Chemistry
  */
 
-const rawQuestionBank = {
+export const rawQuestionBank = {
   1: [
     // --- EASY ROUND ---
     { round: "Easy Round", points: 1, timer: 10, type: "mc", question: "Which quantity describes rotational motion rather than translational motion?", options: ["Linear velocity", "Angular velocity", "Displacement", "Acceleration"], answer: 1 },
