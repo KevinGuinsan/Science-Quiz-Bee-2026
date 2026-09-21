@@ -9,7 +9,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; color: #333; display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; }
-    .layout-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; width: 100%; max-width: 1150px; }
+    .layout-grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; width: 100%; max-width: 1180px; }
     .card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 20px; }
     h1 { font-size: 1.4rem; color: #1a252f; margin-bottom: 10px; }
     .room-box { background: #eef2f5; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 1.8rem; margin-bottom: 15px; color: #0066ff; letter-spacing: 2px; }
@@ -28,6 +28,8 @@
     .btn { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s ease; }
     .btn-timer { background: #e67e22; color: white; }
     .btn-timer:hover { background: #d35400; }
+    .btn-export { background: #10b981; color: white; width: 100%; margin-top: 15px; padding: 10px; font-size: 0.9rem; }
+    .btn-export:hover { background: #059669; }
     .btn-nav { background: #0066ff; color: white; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; border: none; cursor: pointer; }
     .btn-nav.active { background: #0044cc; box-shadow: 0 0 0 2px #002288; }
     .nav-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 15px; }
@@ -60,6 +62,8 @@
           <tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:15px 0;">Waiting for players...</td></tr>
         </tbody>
       </table>
+
+      <button id="export-csv-btn" class="btn btn-export">📥 Export Scores (CSV)</button>
     </div>
 
     <div class="card">
@@ -99,7 +103,6 @@
 
   <script src="questions.js"></script>
   <script>
-    // New room code generated on page refresh -> Resets old session leaderboard
     const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     localStorage.setItem('qb_host_room', roomCode);
     localStorage.removeItem('qb_host_players'); 
@@ -145,7 +148,13 @@
           uuid: pid,
           name: msg.player.name,
           section: msg.player.section,
-          score: connectedPlayers[pid] ? connectedPlayers[pid].score : 0
+          score: connectedPlayers[pid] ? connectedPlayers[pid].score : 0,
+          categoryScores: connectedPlayers[pid] ? connectedPlayers[pid].categoryScores : {
+            "Easy Round": 0,
+            "Moderate Round": 0,
+            "Difficult Round": 0,
+            "Clincher Round": 0
+          }
         };
         localStorage.setItem('qb_host_players', JSON.stringify(connectedPlayers));
         updateLeaderboardUI();
@@ -164,6 +173,7 @@
     const timerDisplay = document.getElementById('timer-display');
     const startTimerBtn = document.getElementById('start-timer-btn');
     const leaderboardBody = document.getElementById('leaderboard-body');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
 
     function updateLeaderboardUI() {
       leaderboardBody.innerHTML = '';
@@ -225,6 +235,7 @@
       if (!q) return;
 
       playerResults = {};
+      const roundCategory = q.round || "Easy Round";
 
       Object.keys(connectedPlayers).forEach(pid => {
         const ans = submittedAnswers[pid];
@@ -239,7 +250,12 @@
         }
 
         if (isCorrect) {
-          connectedPlayers[pid].score += (q.points || 1);
+          const pts = (q.points || 1);
+          connectedPlayers[pid].score += pts;
+          if (!connectedPlayers[pid].categoryScores[roundCategory]) {
+            connectedPlayers[pid].categoryScores[roundCategory] = 0;
+          }
+          connectedPlayers[pid].categoryScores[roundCategory] += pts;
         }
 
         playerResults[pid] = {
@@ -278,7 +294,6 @@
 
       optionsContainer.innerHTML = '';
 
-      // MULTIPLE CHOICE RENDERING
       if (q.type === "mc" && q.options) {
         q.options.forEach((opt, i) => {
           const div = document.createElement('div');
@@ -286,9 +301,7 @@
           div.textContent = `${String.fromCharCode(65 + i)}. ${opt}`;
           optionsContainer.appendChild(div);
         });
-      } 
-      // IDENTIFICATION / SHORT-ANSWER TEXT FIELD RENDERING
-      else if (q.type === "text" || !q.options) {
+      } else if (q.type === "text" || !q.options) {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'identification-input';
@@ -300,7 +313,6 @@
       dispatchCurrentQuestion();
     }
 
-    // High-Precision Synchronized Animation-Frame Timer Loop
     startTimerBtn.addEventListener('click', () => {
       const q = currentQuestions[selectedIndex];
       if (!q) return;
@@ -346,6 +358,36 @@
       updateCounters();
       renderNavButtons();
       renderQuestion(selectedIndex);
+    });
+
+    // CSV Export Functionality broken down by Round Categories
+    exportCsvBtn.addEventListener('click', () => {
+      const players = Object.values(connectedPlayers);
+      if (players.length === 0) {
+        alert("No players available to export.");
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Full Name,Section,Total Score,Easy Round,Moderate Round,Difficult Round,Clincher Round\n";
+
+      players.forEach(p => {
+        const easy = p.categoryScores ? (p.categoryScores["Easy Round"] || 0) : 0;
+        const mod = p.categoryScores ? (p.categoryScores["Moderate Round"] || 0) : 0;
+        const diff = p.categoryScores ? (p.categoryScores["Difficult Round"] || 0) : 0;
+        const clincher = p.categoryScores ? (p.categoryScores["Clincher Round"] || 0) : 0;
+
+        const row = `"${p.name}","${p.section}",${p.score},${easy},${mod},${diff},${clincher}`;
+        csvContent += row + "\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `QuizBee_Scores_Room_${roomCode}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     });
 
     updateLeaderboardUI();
