@@ -40,7 +40,6 @@
 <body>
 
   <div class="layout-grid">
-    <!-- Sidebar: Room Info, QR Code & Live Standings -->
     <div class="card">
       <h1>Quiz Bee Room</h1>
       <div id="room-code-display" class="room-box">CODE: ----</div>
@@ -60,11 +59,9 @@
         </tbody>
       </table>
 
-      <!-- Export CSV Button -->
       <button id="export-csv-btn" class="btn btn-export">📥 Export Detailed CSV</button>
     </div>
 
-    <!-- Main Game Display -->
     <div class="card">
       <header style="display:flex; justify-content: space-between; align-items:center; border-bottom:2px solid #eef2f5; padding-bottom:10px; margin-bottom:15px;">
         <h2>Science 7 Host View</h2>
@@ -89,7 +86,6 @@
   <script type="module">
     import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
 
-    // State Variables
     let currentIndex = 0;
     let timerInterval = null;
     let roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -99,7 +95,6 @@
     let playerResults = {};
     let phoneConnections = [];
 
-    // UI Elements
     const roomCodeEl = document.getElementById('room-code-display');
     const qrContainer = document.getElementById('qrcode');
     const questionTextEl = document.getElementById('question-text');
@@ -112,7 +107,6 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room & Relative Path QR Code
     roomCodeEl.textContent = `CODE: ${roomCode}`;
     const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
@@ -173,7 +167,6 @@
       });
     }
 
-    // 2. Render Question UI
     function renderQuestion(index) {
       clearInterval(timerInterval);
       submittedAnswers = {};
@@ -207,7 +200,6 @@
       dispatchCurrentQuestion();
     }
 
-    // 3. Evaluate Answers & Convert Correct Answer to Numeric Index for player.html
     function evaluateRoundAnswers() {
       const fullQ = questions[currentIndex];
       if (!fullQ) return;
@@ -216,12 +208,47 @@
       const catKey = fullQ.category || "Easy";
       const itemKey = `Q${currentIndex + 1}`;
 
+      // Helper: Find numeric option index (0, 1, 2, 3) from option string or index
+      function getOptionIndex(val) {
+        if (val === null || val === undefined) return -1;
+        if (typeof val === 'number') return val;
+        
+        // If val is numeric string like "2"
+        if (!isNaN(Number(val)) && Number(val) >= 0 && Number(val) < (fullQ.options || []).length) {
+          return Number(val);
+        }
+
+        const strVal = String(val).trim().toLowerCase();
+        
+        // Check exact match in options array
+        if (Array.isArray(fullQ.options)) {
+          const foundIdx = fullQ.options.findIndex(opt => String(opt).trim().toLowerCase() === strVal);
+          if (foundIdx !== -1) return foundIdx;
+        }
+
+        // Check letter code A, B, C, D
+        if (strVal.length === 1 && strVal >= 'a' && strVal <= 'd') {
+          return strVal.charCodeAt(0) - 97;
+        }
+
+        return -1;
+      }
+
+      // 1. Calculate correct answer's numeric index (0, 1, 2, 3)
+      const correctIdx = getOptionIndex(fullQ.answer);
+
       Object.keys(players).forEach(pid => {
         const ans = submittedAnswers[pid];
         let isCorrect = false;
 
         if (ans !== undefined && ans !== null) {
-          isCorrect = verifyAnswer(currentIndex, ans);
+          // If player submitted an option index number or string
+          const submittedIdx = getOptionIndex(ans);
+          if (fullQ.type === 'MULTIPLE_CHOICE' && correctIdx !== -1 && submittedIdx !== -1) {
+            isCorrect = (submittedIdx === correctIdx);
+          } else {
+            isCorrect = verifyAnswer(currentIndex, ans);
+          }
         }
 
         const ptsEarned = isCorrect ? (fullQ.points || 1) : 0;
@@ -240,39 +267,15 @@
 
       updateLeaderboardUI();
 
-      // STRICT INDEX RESOLUTION: Ensures player.html receives a 0-based integer (0, 1, 2, or 3)
-      let correctIndex = -1;
-      if (fullQ.type === 'MULTIPLE_CHOICE' && Array.isArray(fullQ.options)) {
-        // Case 1: Match exact text in options array
-        correctIndex = fullQ.options.findIndex(opt => 
-          String(opt).trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase()
-        );
-
-        // Case 2: If answer is stored as "A", "B", "C", or "D"
-        if (correctIndex === -1 && typeof fullQ.answer === 'string' && fullQ.answer.trim().length === 1) {
-          const letterCode = fullQ.answer.trim().toUpperCase().charCodeAt(0);
-          if (letterCode >= 65 && letterCode <= 68) {
-            correctIndex = letterCode - 65;
-          }
-        }
-
-        // Case 3: If answer is stored as a numeric index or string number "0", "1", "2", "3"
-        if (correctIndex === -1 && !isNaN(Number(fullQ.answer))) {
-          correctIndex = Number(fullQ.answer);
-        }
-      } else {
-        correctIndex = fullQ.answer; // Text identification questions
-      }
-
+      // Broadcast numeric index to player.html so it highlights green correctly
       broadcastPayload({
         type: 'TIME_UP',
-        correctAnswer: correctIndex,
+        correctAnswer: (fullQ.type === 'MULTIPLE_CHOICE') ? correctIdx : fullQ.answer,
         questionType: fullQ.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
         leaderboard: players
       });
     }
 
-    // 4. Start Timer Trigger Functionality
     startTimerBtn.addEventListener('click', () => {
       const qData = getSanitizedQuestionForClient(currentIndex);
       const durationMs = qData.timeLimit * 1000;
@@ -315,7 +318,6 @@
       }, 30);
     });
 
-    // 5. Standings Render Helper
     function updateLeaderboardUI() {
       const sorted = Object.values(players).sort((a, b) => b.score - a.score);
       leaderboardBody.innerHTML = '';
@@ -336,7 +338,6 @@
       });
     }
 
-    // 6. CSV Export Listener
     exportCsvBtn.addEventListener('click', () => {
       const playerList = Object.values(players);
       if (playerList.length === 0) {
@@ -372,7 +373,6 @@
       document.body.removeChild(link);
     });
 
-    // Navigation Listeners
     nextBtn.addEventListener('click', () => {
       if (currentIndex < questions.length - 1) {
         currentIndex++;
@@ -387,7 +387,6 @@
       }
     });
 
-    // Initial Load
     renderQuestion(currentIndex);
   </script>
 </body>
