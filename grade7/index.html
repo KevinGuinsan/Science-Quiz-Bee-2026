@@ -68,15 +68,6 @@
 
     <div class="card">
       <h1>Grade 7 Science Quiz Bee Controller</h1>
-      
-      <div style="margin: 15px 0;">
-        <label><b>Active Question Set:</b></label><br>
-        <select id="set-select" style="padding: 6px 12px; border-radius:6px; margin-top:5px; font-weight:600;">
-          <option value="1">Question Set A</option>
-          <option value="2">Question Set B</option>
-          <option value="3">Question Set C</option>
-        </select>
-      </div>
 
       <div class="counters">
         <span>🟢 Easy: <span id="easy-count">0</span></span>
@@ -108,18 +99,17 @@
     localStorage.removeItem('qb_host_players_g7'); 
     document.getElementById('room-code-display').textContent = roomCode;
 
-    let currentSetKey = 1;
     let selectedIndex = 0;
     let connectedPlayers = {};
-    let currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
+    
+    // Automatically uses rawQuestionBank directly or Array if not using sets
+    let currentQuestions = Array.isArray(rawQuestionBank) ? rawQuestionBank : (rawQuestionBank[1] || Object.values(rawQuestionBank)[0]);
     
     let timerAnimFrame = null;
     let activeEndTime = null;
     let submittedAnswers = {}; 
     let playerResults = {};
     let phoneConnections = [];
-
-    document.getElementById('set-select').value = currentSetKey;
 
     const joinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 120, height: 120 });
@@ -164,7 +154,6 @@
       }
     }
 
-    const setSelect = document.getElementById('set-select');
     const qTextEl = document.getElementById('question-text');
     const qHeaderEl = document.getElementById('question-header');
     const badgeEl = document.getElementById('round-badge');
@@ -285,7 +274,7 @@
       if (!q) return;
 
       const duration = q.timer || 15;
-      qHeaderEl.textContent = `SET_${currentSetKey} — Question ${index + 1} of ${currentQuestions.length}`;
+      qHeaderEl.textContent = `Question ${index + 1} of ${currentQuestions.length}`;
       qTextEl.textContent = q.question;
       timerDisplay.textContent = `${duration.toFixed(2)}s`;
 
@@ -349,15 +338,6 @@
       }
 
       timerAnimFrame = requestAnimationFrame(updateHostTimer);
-    });
-
-    setSelect.addEventListener('change', (e) => {
-      currentSetKey = e.target.value;
-      currentQuestions = rawQuestionBank[currentSetKey] || rawQuestionBank[1];
-      selectedIndex = 0;
-      updateCounters();
-      renderNavButtons();
-      renderQuestion(selectedIndex);
     });
 
     exportCsvBtn.addEventListener('click', () => {
