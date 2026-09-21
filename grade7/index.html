@@ -60,6 +60,7 @@
         </tbody>
       </table>
 
+      <!-- Export CSV Button -->
       <button id="export-csv-btn" class="btn btn-export">📥 Export Detailed CSV</button>
     </div>
 
@@ -88,14 +89,17 @@
   <script type="module">
     import { getSanitizedQuestionForClient, verifyAnswer, questions } from './questions.js';
 
+    // State Variables
     let currentIndex = 0;
     let timerInterval = null;
     let roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    
     let players = {};
     let submittedAnswers = {};
     let playerResults = {};
     let phoneConnections = [];
 
+    // UI Elements
     const roomCodeEl = document.getElementById('room-code-display');
     const qrContainer = document.getElementById('qrcode');
     const questionTextEl = document.getElementById('question-text');
@@ -108,7 +112,7 @@
     const leaderboardBody = document.getElementById('leaderboard-body');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
-    // 1. Initialize Room Code, Relative Path QR Code, and Realtime Sockets
+    // 1. Initialize Room & Relative Path QR Code (Fixes 404 on GitHub Pages)
     roomCodeEl.textContent = `CODE: ${roomCode}`;
     const playerJoinUrl = new URL(`../player.html?room=${roomCode}`, window.location.href).href;
     new QRCode(qrContainer, { text: playerJoinUrl, width: 120, height: 120 });
@@ -150,7 +154,7 @@
       }
     }
 
-    // Standardizes Grade 7 questions so root player.html receives the exact format it expects
+    // Formats payload so root player.html displays question correctly
     function dispatchCurrentQuestion() {
       const qData = getSanitizedQuestionForClient(currentIndex);
       if (!qData) return;
@@ -204,7 +208,7 @@
       dispatchCurrentQuestion();
     }
 
-    // 3. Answer Marking, Points Allocation & Item-Level Tracking Engine
+    // 3. Evaluate Answers, Award Points & Mark Status
     function evaluateRoundAnswers() {
       const fullQ = questions[currentIndex];
       if (!fullQ) return;
@@ -237,7 +241,6 @@
 
       updateLeaderboardUI();
 
-      // Find index of the correct answer for player highlighting
       let correctPayload = fullQ.answer;
       if (fullQ.type === 'MULTIPLE_CHOICE' && fullQ.options) {
         correctPayload = fullQ.options.findIndex(opt => opt.trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase());
@@ -294,7 +297,7 @@
       }, 30);
     });
 
-    // 5. Standings Render Helper
+    // 5. Standings Render Helper with Correct/Wrong Labels
     function updateLeaderboardUI() {
       const sorted = Object.values(players).sort((a, b) => b.score - a.score);
       leaderboardBody.innerHTML = '';
@@ -315,7 +318,7 @@
       });
     }
 
-    // 6. CSV Export Listener with Individual Question Number Columns
+    // 6. Detailed CSV Export (Per-Question Columns + Category Totals)
     exportCsvBtn.addEventListener('click', () => {
       const playerList = Object.values(players);
       if (playerList.length === 0) {
