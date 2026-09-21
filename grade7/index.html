@@ -240,13 +240,28 @@
 
       updateLeaderboardUI();
 
-      // IMPORTANT FIX: Convert answer to numeric index so player.html turns correct button GREEN
-      let correctIndex = fullQ.answer;
+      // STRICT INDEX RESOLUTION: Ensures player.html receives a 0-based integer (0, 1, 2, or 3)
+      let correctIndex = -1;
       if (fullQ.type === 'MULTIPLE_CHOICE' && Array.isArray(fullQ.options)) {
-        correctIndex = fullQ.options.findIndex(opt => String(opt).trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase());
+        // Case 1: Match exact text in options array
+        correctIndex = fullQ.options.findIndex(opt => 
+          String(opt).trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase()
+        );
+
+        // Case 2: If answer is stored as "A", "B", "C", or "D"
+        if (correctIndex === -1 && typeof fullQ.answer === 'string' && fullQ.answer.trim().length === 1) {
+          const letterCode = fullQ.answer.trim().toUpperCase().charCodeAt(0);
+          if (letterCode >= 65 && letterCode <= 68) {
+            correctIndex = letterCode - 65;
+          }
+        }
+
+        // Case 3: If answer is stored as a numeric index or string number "0", "1", "2", "3"
         if (correctIndex === -1 && !isNaN(Number(fullQ.answer))) {
           correctIndex = Number(fullQ.answer);
         }
+      } else {
+        correctIndex = fullQ.answer; // Text identification questions
       }
 
       broadcastPayload({
