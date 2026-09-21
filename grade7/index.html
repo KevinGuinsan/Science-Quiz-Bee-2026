@@ -40,6 +40,7 @@
 <body>
 
   <div class="layout-grid">
+    <!-- Sidebar: Room Info, QR Code & Live Standings -->
     <div class="card">
       <h1>Quiz Bee Room</h1>
       <div id="room-code-display" class="room-box">CODE: ----</div>
@@ -62,6 +63,7 @@
       <button id="export-csv-btn" class="btn btn-export">📥 Export Detailed CSV</button>
     </div>
 
+    <!-- Main Game Display -->
     <div class="card">
       <header style="display:flex; justify-content: space-between; align-items:center; border-bottom:2px solid #eef2f5; padding-bottom:10px; margin-bottom:15px;">
         <h2>Science 7 Host View</h2>
@@ -148,6 +150,7 @@
       }
     }
 
+    // Standardizes Grade 7 questions so root player.html receives the exact format it expects
     function dispatchCurrentQuestion() {
       const qData = getSanitizedQuestionForClient(currentIndex);
       if (!qData) return;
@@ -157,7 +160,7 @@
         options: qData.options || null,
         type: qData.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
         timer: qData.timeLimit || 10,
-        round: qData.category || 'EASY'
+        round: qData.category ? `${qData.category} Round` : 'Easy Round'
       };
 
       broadcastPayload({
@@ -226,7 +229,6 @@
           players[pid].categoryScores[catKey] += ptsEarned;
         }
 
-        // Store itemized score (0 or earned points) for individual question column export
         if (!players[pid].itemScores) players[pid].itemScores = {};
         players[pid].itemScores[itemKey] = ptsEarned;
 
@@ -235,9 +237,15 @@
 
       updateLeaderboardUI();
 
+      // Find index of the correct answer for player highlighting
+      let correctPayload = fullQ.answer;
+      if (fullQ.type === 'MULTIPLE_CHOICE' && fullQ.options) {
+        correctPayload = fullQ.options.findIndex(opt => opt.trim().toLowerCase() === String(fullQ.answer).trim().toLowerCase());
+      }
+
       broadcastPayload({
         type: 'TIME_UP',
-        correctAnswer: fullQ.answer,
+        correctAnswer: correctPayload,
         questionType: fullQ.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
         leaderboard: players
       });
@@ -261,7 +269,7 @@
         options: qData.options || null,
         type: qData.type === 'MULTIPLE_CHOICE' ? 'mc' : 'text',
         timer: qData.timeLimit || 10,
-        round: qData.category || 'EASY'
+        round: qData.category ? `${qData.category} Round` : 'Easy Round'
       };
 
       broadcastPayload({
@@ -315,7 +323,6 @@
         return;
       }
 
-      // Generate dynamic column headers for each question number (e.g., Q1, Q2, Q3...)
       const questionHeaders = questions.map((_, idx) => `Q${idx + 1}`).join(",");
 
       let csvContent = "data:text/csv;charset=utf-8,";
@@ -327,7 +334,6 @@
         const diff = p.categoryScores ? (p.categoryScores["Difficult"] || 0) : 0;
         const clincher = p.categoryScores ? (p.categoryScores["Clincher"] || 0) : 0;
 
-        // Build individual question score columns
         const itemScoresList = questions.map((_, idx) => {
           const itemKey = `Q${idx + 1}`;
           return (p.itemScores && p.itemScores[itemKey] !== undefined) ? p.itemScores[itemKey] : 0;
